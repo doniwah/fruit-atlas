@@ -58,7 +58,7 @@ function DatasetsPage() {
 
     const matchesFruit =
       fruitFilter === "Semua buah" ||
-      item.fruit.toLowerCase() === (fruitFilter === "Apel" ? "apple" : fruitFilter === "Jeruk" ? "orange" : fruitFilter === "Pisang" ? "banana" : fruitFilter === "Mangga" ? "mango" : fruitFilter === "Anggur" ? "grape" : fruitFilter).toLowerCase();
+      item.fruit.toLowerCase() === fruitFilter.toLowerCase();
 
     return matchesSearch && matchesFruit;
   });
@@ -100,11 +100,9 @@ function DatasetsPage() {
               className="rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none"
             >
               <option>Semua buah</option>
-              <option>Apel</option>
-              <option>Jeruk</option>
-              <option>Pisang</option>
-              <option>Mangga</option>
-              <option>Anggur</option>
+              {Array.from(new Set(items.map(item => translateFruit(item.fruit)))).sort().map(f => (
+                <option key={f} value={f}>{f}</option>
+              ))}
             </select>
           </div>
         }

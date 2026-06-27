@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell, Section } from "@/components/app/AppShell";
 import { getClusters, getDataset, addClusterConfigItem, updateClusterConfigItem, deleteClusterConfigItem, ClusterConfig } from "@/lib/db-store";
 import { Plus, Pencil, Trash2, X, Check } from "lucide-react";
@@ -330,32 +330,42 @@ function ClustersPage() {
                   ) : (
                     <>
                       <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
+                        <Link
+                          to="/admin/cluster-detail"
+                          search={{ id: c.id }}
+                          className="flex items-center gap-3 cursor-pointer group/link hover:opacity-85 transition-opacity flex-1 min-w-0"
+                        >
                           <div
-                            className="h-10 w-10 rounded-lg border border-border"
+                            className="h-10 w-10 rounded-lg border border-border shrink-0 transition-transform group-hover/link:scale-[1.03]"
                             style={{ background: c.dominantColor }}
                           />
-                          <div>
+                          <div className="min-w-0">
                             <div className="text-xs font-mono text-muted-foreground">{c.id}</div>
-                            <div className="text-sm font-semibold">{translateLabel(c.label)}</div>
+                            <div className="text-sm font-semibold truncate group-hover/link:text-primary transition-colors">
+                              {translateLabel(c.label)}
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-1">
+                        </Link>
+                        <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={() => handleEditClick(c)}
-                            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer transition-colors"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => handleDelete(c.id)}
-                            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-destructive"
+                            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-destructive cursor-pointer transition-colors"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </div>
-                      <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                      <Link
+                        to="/admin/cluster-detail"
+                        search={{ id: c.id }}
+                        className="mt-4 grid grid-cols-2 gap-3 text-xs border-t border-border/40 pt-3 cursor-pointer hover:opacity-85 transition-opacity block"
+                      >
                         <div>
                           <div className="text-muted-foreground">Anggota Terhitung</div>
                           <div className="font-semibold text-foreground">{count} gambar</div>
@@ -364,7 +374,7 @@ function ClustersPage() {
                           <div className="text-muted-foreground">Arketipe Bentuk</div>
                           <div className="font-semibold text-foreground">{translateShapeToIndonesian(c.shape)}</div>
                         </div>
-                      </div>
+                      </Link>
                     </>
                   )}
                 </div>

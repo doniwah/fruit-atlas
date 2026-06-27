@@ -31,6 +31,7 @@ import { Route as AdminReportsRouteImport } from './routes/admin.reports'
 import { Route as AdminProfileRouteImport } from './routes/admin.profile'
 import { Route as AdminDatasetsRouteImport } from './routes/admin.datasets'
 import { Route as AdminClustersRouteImport } from './routes/admin.clusters'
+import { Route as AdminClusterDetailRouteImport } from './routes/admin.cluster-detail'
 import { Route as AdminAnalysisRouteImport } from './routes/admin.analysis'
 
 const WorkflowRoute = WorkflowRouteImport.update({
@@ -143,6 +144,11 @@ const AdminClustersRoute = AdminClustersRouteImport.update({
   path: '/admin/clusters',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminClusterDetailRoute = AdminClusterDetailRouteImport.update({
+  id: '/admin/cluster-detail',
+  path: '/admin/cluster-detail',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminAnalysisRoute = AdminAnalysisRouteImport.update({
   id: '/admin/analysis',
   path: '/admin/analysis',
@@ -160,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/workflow': typeof WorkflowRoute
   '/admin/analysis': typeof AdminAnalysisRoute
+  '/admin/cluster-detail': typeof AdminClusterDetailRoute
   '/admin/clusters': typeof AdminClustersRoute
   '/admin/datasets': typeof AdminDatasetsRoute
   '/admin/profile': typeof AdminProfileRoute
@@ -185,6 +192,7 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/workflow': typeof WorkflowRoute
   '/admin/analysis': typeof AdminAnalysisRoute
+  '/admin/cluster-detail': typeof AdminClusterDetailRoute
   '/admin/clusters': typeof AdminClustersRoute
   '/admin/datasets': typeof AdminDatasetsRoute
   '/admin/profile': typeof AdminProfileRoute
@@ -211,6 +219,7 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/workflow': typeof WorkflowRoute
   '/admin/analysis': typeof AdminAnalysisRoute
+  '/admin/cluster-detail': typeof AdminClusterDetailRoute
   '/admin/clusters': typeof AdminClustersRoute
   '/admin/datasets': typeof AdminDatasetsRoute
   '/admin/profile': typeof AdminProfileRoute
@@ -238,6 +247,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/workflow'
     | '/admin/analysis'
+    | '/admin/cluster-detail'
     | '/admin/clusters'
     | '/admin/datasets'
     | '/admin/profile'
@@ -263,6 +273,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/workflow'
     | '/admin/analysis'
+    | '/admin/cluster-detail'
     | '/admin/clusters'
     | '/admin/datasets'
     | '/admin/profile'
@@ -288,6 +299,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/workflow'
     | '/admin/analysis'
+    | '/admin/cluster-detail'
     | '/admin/clusters'
     | '/admin/datasets'
     | '/admin/profile'
@@ -314,6 +326,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   WorkflowRoute: typeof WorkflowRoute
   AdminAnalysisRoute: typeof AdminAnalysisRoute
+  AdminClusterDetailRoute: typeof AdminClusterDetailRoute
   AdminClustersRoute: typeof AdminClustersRoute
   AdminDatasetsRoute: typeof AdminDatasetsRoute
   AdminProfileRoute: typeof AdminProfileRoute
@@ -485,6 +498,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminClustersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/cluster-detail': {
+      id: '/admin/cluster-detail'
+      path: '/admin/cluster-detail'
+      fullPath: '/admin/cluster-detail'
+      preLoaderRoute: typeof AdminClusterDetailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/analysis': {
       id: '/admin/analysis'
       path: '/admin/analysis'
@@ -506,6 +526,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   WorkflowRoute: WorkflowRoute,
   AdminAnalysisRoute: AdminAnalysisRoute,
+  AdminClusterDetailRoute: AdminClusterDetailRoute,
   AdminClustersRoute: AdminClustersRoute,
   AdminDatasetsRoute: AdminDatasetsRoute,
   AdminProfileRoute: AdminProfileRoute,

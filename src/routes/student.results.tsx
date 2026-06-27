@@ -52,11 +52,11 @@ function ResultsPage() {
               id: found.id,
               name: found.name,
               fruit: found.fruit || "Tidak Diketahui",
-              clusterId: found.cluster || "C-6",
-              clusterLabel: found.fruit ? `Klaster ${found.fruit}` : "Derau (Noise)",
+              clusterId: found.cluster || "C-7",
+              clusterLabel: found.fruit && found.fruit !== "Noise" ? `Klaster ${found.fruit}` : "Derau (Noise)",
               dominantColor: hsvToHexColor(found.hue, found.saturation, found.value),
               shape: found.circularity > 0.85 ? "Bulat" : "Tidak Beraturan",
-              confidence: found.cluster && found.cluster !== "C-6" ? "Tinggi" : "Rendah (Noise)",
+              confidence: found.cluster && found.fruit !== "Noise" && found.fruit !== "Derau" ? "Tinggi" : "Rendah (Noise)",
               notes: `Diambil dari database. Fitur inti: HSV(${found.hue}°, ${found.saturation}, ${found.value}), Sirkularitas: ${found.circularity}, Rasio Aspek: ${found.aspectRatio}.`,
               hue: found.hue,
               saturation: found.saturation,
@@ -76,7 +76,7 @@ function ResultsPage() {
       // Load from localStorage
       const img = localStorage.getItem("fruit_atlas_upload_image") || "";
       const label = localStorage.getItem("fruit_atlas_last_run_label") || "Derau (Noise)";
-      const cid = localStorage.getItem("fruit_atlas_last_run_id") || "C-6";
+      const cid = localStorage.getItem("fruit_atlas_last_run_id") || "C-7";
       const conf = localStorage.getItem("fruit_atlas_last_run_confidence") || "Rendah";
       const col = localStorage.getItem("fruit_atlas_last_run_color") || "#9CA3AF";
       const shp = localStorage.getItem("fruit_atlas_last_run_shape") || "Campuran";

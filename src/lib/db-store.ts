@@ -21,6 +21,8 @@ export interface FruitItem {
   isCore?: boolean;
   isBorder?: boolean;
   isNoise?: boolean;
+  cluster?: string;
+  clusterLabel?: string;
 }
 
 export interface ClusterConfig {
@@ -154,8 +156,6 @@ async function loadDb(): Promise<DbSchema> {
     throw new Error("Cannot load DB on the client");
   }
 
-  if (memoryDb) return memoryDb;
-
   try {
     const fs = await import("fs/promises");
     const dbPath = await getDbPath();
@@ -163,6 +163,7 @@ async function loadDb(): Promise<DbSchema> {
     memoryDb = JSON.parse(data);
     return memoryDb!;
   } catch (error) {
+    if (memoryDb) return memoryDb;
     memoryDb = prePopulateDb();
     await saveDb(memoryDb).catch(() => {
       console.warn("Failed to write db.json, running in-memory");
@@ -198,8 +199,8 @@ export const getClusters = createServerFn({ method: "GET" })
     return db.clusterConfigs;
   });
 
-export const addDatasetItem = createServerFn({ method: "POST" })
-  .handler(async ({ data }: { data: Omit<FruitItem, "id" | "uploaded" | "isSynthetic"> }) => {
+export const addDatasetItem = (createServerFn({ method: "POST" })
+  .handler(async ({ data }: any) => {
     const db = await loadDb();
     
     // Generate a new ID
@@ -215,15 +216,15 @@ export const addDatasetItem = createServerFn({ method: "POST" })
     db.items.push(newItem);
     await saveDb(db);
     return newItem;
-  });
+  })) as any;
 
-export const deleteDatasetItem = createServerFn({ method: "POST" })
-  .handler(async ({ data: id }: { data: string }) => {
+export const deleteDatasetItem = (createServerFn({ method: "POST" })
+  .handler(async ({ data: id }: any) => {
     const db = await loadDb();
     db.items = db.items.filter(i => i.id !== id);
     await saveDb(db);
     return { success: true };
-  });
+  })) as any;
 
 export const getDashboardStats = createServerFn({ method: "GET" })
   .handler(async () => {
@@ -239,7 +240,7 @@ export const getDashboardStats = createServerFn({ method: "GET" })
       features: [item.hue, item.saturation, item.value, item.circularity, item.aspectRatio]
     }));
     const normalized = normalizeFeatures(dbscanInputs);
-    const clusterResults = runDBSCAN(normalized, 0.3, 4, [1, 1, 1, 1, 1]);
+    const clusterResults = runDBSCAN(normalized, 0.05, 4, [1, 1, 1, 1, 1]);
     
     const uniqueClusters = new Set(
       Array.from(clusterResults.values())
@@ -271,7 +272,7 @@ export const getDashboardStats = createServerFn({ method: "GET" })
         { label: "Total Analysis Runs", value: totalAnalysis.toString(), delta: "+15 today" },
         { label: "Total Clusters", value: uniqueClusters.size.toString(), delta: "stable" },
         { label: "Noise Points", value: noiseCount.toString(), delta: `${noiseCount} isolated` }
-      ],
+      ] as Array<{ label: string; value: string; delta: string }>,
       distribution,
       history: [
         { day: "Mon", runs: Math.round(totalAnalysis * 0.12) },
@@ -285,56 +286,31 @@ export const getDashboardStats = createServerFn({ method: "GET" })
     };
   });
 
-export const updateClusterConfigs = createServerFn({ method: "POST" })
-  .handler(async ({ data: configs }: { data: ClusterConfig[] }) => {
+export const updateClusterConfigs = (createServerFn({ method: "POST" })
+  .handler(async ({ data: configs }: any) => {
     const db = await loadDb();
     db.clusterConfigs = configs;
     await saveDb(db);
     return configs;
-  });
-export const updateClusterConfigItem = createServerFn({ method: "POST" })
-  .handler(async ({ data: config }: { data: ClusterConfig }) => {
+  })) as any;
+export const updateClusterConfigItem = (createServerFn({ method: "POST" })
+  .handler(async ({ data: config }: any) => {
     const db = await loadDb();
     db.clusterConfigs = db.clusterConfigs.map(c => c.id === config.id ? config : c);
     await saveDb(db);
     return db.clusterConfigs;
-  });
-export const addClusterConfigItem = createServerFn({ method: "POST" })
-  .handler(async ({ data }: { data: Omit<ClusterConfig, "id"> }) => {
+  })) as any;
+export const addClusterConfigItem = (createServerFn({ method: "POST" })
+  .handler(async ({ data }: any) => {
     const db = await loadDb();
     const nextId = `C-${db.clusterConfigs.length + 1}`;
     const newConfig = { ...data, id: nextId };
     db.clusterConfigs.push(newConfig);
     await saveDb(db);
     return newConfig;
-  });
-export const runDBSCANClustering = createServerFn({ method: "POST" })
-  .handler(async ({ data: { eps, minSamples, featureMode, tempPoint, tempPoints } }: {
-    data: {
-      eps: number;
-      minSamples: number;
-      featureMode: "color" | "shape" | "both";
-      tempPoint?: {
-        hue: number;
-        saturation: number;
-        value: number;
-        circularity: number;
-        aspectRatio: number;
-        fruit?: string;
-      };
-      tempPoints?: Array<{
-        id?: string;
-        name?: string;
-        hue: number;
-        saturation: number;
-        value: number;
-        circularity: number;
-        aspectRatio: number;
-        fruit?: string;
-        imageUrl?: string;
-      }>;
-    };
-  }) => {
+  })) as any;
+export const runDBSCANClustering = (createServerFn({ method: "POST" })
+  .handler(async ({ data: { eps, minSamples, featureMode, tempPoint, tempPoints } }: any) => {
     const db = await loadDb();
     
     // Define weights based on featureMode
@@ -349,7 +325,7 @@ export const runDBSCANClustering = createServerFn({ method: "POST" })
     const items = [...db.items];
     
     if (tempPoints && tempPoints.length > 0) {
-      tempPoints.forEach((tp, idx) => {
+      tempPoints.forEach((tp: any, idx: number) => {
         items.push({
           id: tp.id || `TEMP-RUN-${idx}`,
           name: tp.name || `current_run_${idx + 1}.jpg`,
@@ -452,8 +428,14 @@ export const runDBSCANClustering = createServerFn({ method: "POST" })
     
     // Assign cluster label names matching clusterConfigs
     const processedPoints = resultPoints.map(pt => {
-      let clusterLabel = "Noise";
-      let clusterIdStr = "C-6";
+      let clusterLabel = "Derau (Noise)";
+      let clusterIdStr = "C-7";
+
+      const noiseConfig = clusterConfigs.find(c => c.label.includes("Derau") || c.label.includes("Noise"));
+      if (noiseConfig) {
+        clusterLabel = noiseConfig.label;
+        clusterIdStr = noiseConfig.id;
+      }
 
       if (pt.clusterId !== -1) {
         const mappedFruit = clusterFruitMapping.get(pt.clusterId!);
@@ -479,11 +461,11 @@ export const runDBSCANClustering = createServerFn({ method: "POST" })
       clusterCount: uniqueClusterIds.length,
       noiseCount: processedPoints.filter(p => p.clusterId === -1).length,
     };
-  });
-export const deleteClusterConfigItem = createServerFn({ method: "POST" })
-  .handler(async ({ data: id }: { data: string }) => {
+  })) as any;
+export const deleteClusterConfigItem = (createServerFn({ method: "POST" })
+  .handler(async ({ data: id }: any) => {
     const db = await loadDb();
     db.clusterConfigs = db.clusterConfigs.filter(c => c.id !== id);
     await saveDb(db);
     return db.clusterConfigs;
-  });
+  })) as any;
