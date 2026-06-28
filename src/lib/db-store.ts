@@ -54,17 +54,17 @@ function prePopulateDb(): DbSchema {
   const items: FruitItem[] = [];
 
   // Generate 12 detailed mock entries matching datasetRows in mock-data.ts
-  const fruitsList = ["Apple", "Orange", "Banana", "Mango", "Grape"];
-  const fileNames = ["apple_red_01.jpg", "orange_02.jpg", "banana_ripe.jpg", "mango_green.jpg", "grape_purple.jpg"];
+  const fruitsList = ["Apel", "Jeruk", "Pisang", "Mangga", "Anggur"];
+  const fileNames = ["apel_merah_01.jpg", "jeruk_02.jpg", "pisang_matang.jpg", "mangga_hijau.jpg", "anggur_ungu.jpg"];
   const clusterMapping = ["C-1", "C-2", "C-3", "C-4", "C-5"];
 
-  // Default features for each fruit type
+  // Default features for each fruit type (hue in degrees HSV)
   const baseFeatures: Record<string, { h: number, s: number, v: number, c: number, a: number, x: number, y: number }> = {
-    "Apple": { h: 12, s: 0.8, v: 0.75, c: 0.92, a: 1.02, x: 25, y: 70 },
-    "Orange": { h: 32, s: 0.85, v: 0.8, c: 0.96, a: 0.98, x: 55, y: 60 },
-    "Banana": { h: 52, s: 0.9, v: 0.88, c: 0.42, a: 2.4, x: 75, y: 80 },
-    "Mango": { h: 42, s: 0.72, v: 0.76, c: 0.76, a: 1.34, x: 40, y: 35 },
-    "Grape": { h: 282, s: 0.62, v: 0.42, c: 0.88, a: 0.92, x: 80, y: 30 },
+    "Apel":   { h: 12,  s: 0.80, v: 0.75, c: 0.92, a: 1.02, x: 25, y: 70 },
+    "Jeruk":  { h: 28,  s: 0.85, v: 0.80, c: 0.88, a: 0.98, x: 55, y: 60 },
+    "Pisang": { h: 52,  s: 0.90, v: 0.88, c: 0.42, a: 2.40, x: 75, y: 80 },
+    "Mangga": { h: 42,  s: 0.72, v: 0.76, c: 0.76, a: 1.34, x: 40, y: 35 },
+    "Anggur": { h: 282, s: 0.62, v: 0.42, c: 0.88, a: 0.92, x: 80, y: 30 },
   };
 
   for (let i = 0; i < 12; i++) {
@@ -96,7 +96,7 @@ function prePopulateDb(): DbSchema {
   const centers = [
     [25, 70], [55, 60], [75, 80], [40, 35], [80, 30], [50, 50],
   ];
-  const clusterFruitNames = ["Apple", "Orange", "Banana", "Mango", "Grape", "Noise"];
+  const clusterFruitNames = ["Apel", "Jeruk", "Pisang", "Mangga", "Anggur", "Noise"];
 
   for (let i = 0; i < 120; i++) {
     const clusterIdx = i % 6;
@@ -439,7 +439,9 @@ export const runDBSCANClustering = (createServerFn({ method: "POST" })
 
       if (pt.clusterId !== -1) {
         const mappedFruit = clusterFruitMapping.get(pt.clusterId!);
-        const config = clusterConfigs.find(c => c.label.startsWith(mappedFruit || ""));
+        const config = clusterConfigs.find(c =>
+          mappedFruit && c.label.toLowerCase().includes(mappedFruit.toLowerCase())
+        );
         if (config) {
           clusterLabel = config.label;
           clusterIdStr = config.id;

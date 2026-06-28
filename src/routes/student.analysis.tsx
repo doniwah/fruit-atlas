@@ -397,6 +397,13 @@ function AnalysisPage() {
         finalCircularity = 0.92;
         finalAspectRatio = 1.02;
         finalColorHex = hsvToHex(finalHue, finalSat, finalVal);
+      } else if (lowerName.includes("jeruk") || lowerName.includes("orange")) {
+        finalHue = 28;
+        finalSat = 0.85;
+        finalVal = 0.85;
+        finalCircularity = 0.88;
+        finalAspectRatio = 0.98;
+        finalColorHex = hsvToHex(finalHue, finalSat, finalVal);
       } else if (lowerName.includes("lemon")) {
         finalHue = 55;
         finalSat = 0.75;
@@ -845,7 +852,7 @@ function AnalysisPage() {
                       Sesuaikan parameter: <strong>eps</strong> untuk mengatur jarak maksimum tetangga, dan <strong>min_samples</strong> untuk kerapatan minimum pembentukan klaster.
                     </p>
                     <p className="mt-2 border-t border-border/40 pt-2 text-[11px] text-amber-500 font-medium">
-                      💡 <strong>Tips Demo Bentuk:</strong> Jika Anda mengunggah Apel, Lemon, Ceri, dan Pisang sekaligus: pilih metrik <strong>Bentuk</strong> di panel kontrol agar Apel, Lemon, dan Ceri (yang sama-sama bulat) menyatu ke dalam 1 klaster bentuk, sedangkan Pisang terpisah ke klasternya sendiri karena bentuknya yang melengkung.
+                      💡 <strong>Tips Klasifikasi:</strong> Mode <strong>Keduanya</strong> (warna + bentuk) sudah aktif secara default — ini memberikan hasil terbaik karena DBSCAN mempertimbangkan hue warna <em>dan</em> sirkularitas bentuk sekaligus. Misalnya: Jeruk (hue ~28°, bulat) dan Apel (hue ~12°, bulat) dipisah oleh perbedaan warna, sedangkan Pisang dipisah karena sirkularitas rendah dan rasio aspek tinggi (bentuk lonjong).
                     </p>
                   </>
                 )}
