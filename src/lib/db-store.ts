@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { runDBSCAN, normalizeFeatures, DBSCANInputPoint } from "./dbscan";
+import { runDBSCAN, normalizeFeatures, buildWeights, assignNearestCluster, DBSCANInputPoint } from "./dbscan";
 
 // Interfaces
 export interface FruitItem {
@@ -36,6 +36,12 @@ export interface ClusterConfig {
 interface DbSchema {
   items: FruitItem[];
   clusterConfigs: ClusterConfig[];
+  dbscanSettings?: {
+    eps: number;
+    minSamples: number;
+    featureMode: "color" | "shape" | "both";
+  };
+  users?: any[];
 }
 
 let memoryDb: DbSchema | null = null;
@@ -80,13 +86,13 @@ function prePopulateDb(): DbSchema {
       size: `${(120 + i * 13) % 400 + 50} KB`,
       uploaded: `2025-05-${(10 + i).toString().padStart(2, "0")}`,
       // Add slight variance to features
-      hue: Math.round((base.h + seed * 10) % 360),
-      saturation: Math.min(1, Math.max(0, base.s + (i % 2 === 0 ? seed : -seed) * 0.1)),
-      value: Math.min(1, Math.max(0, base.v + (i % 2 === 1 ? seed : -seed) * 0.1)),
-      circularity: Math.min(1, Math.max(0, base.c + (i % 2 === 0 ? seed : -seed) * 0.05)),
-      aspectRatio: Math.max(0.5, base.a + (i % 2 === 1 ? seed : -seed) * 0.15),
-      x: Math.round(base.x + (i % 2 === 0 ? 3 : -3)),
-      y: Math.round(base.y + (i % 2 === 1 ? 3 : -3)),
+      hue: Math.round((base.h + (Math.random() - 0.5) * 15 + 360) % 360),
+      saturation: parseFloat(Math.min(1, Math.max(0, base.s + (Math.random() - 0.5) * 0.15)).toFixed(4)),
+      value: parseFloat(Math.min(1, Math.max(0, base.v + (Math.random() - 0.5) * 0.15)).toFixed(4)),
+      circularity: parseFloat(Math.min(1, Math.max(0.1, base.c + (Math.random() - 0.5) * 0.1)).toFixed(4)),
+      aspectRatio: parseFloat(Math.max(0.4, base.a + (Math.random() - 0.5) * 0.4).toFixed(4)),
+      x: parseFloat((base.x + (Math.random() - 0.5) * 6).toFixed(1)),
+      y: parseFloat((base.y + (Math.random() - 0.5) * 6).toFixed(1)),
       isSynthetic: false,
     });
   }
@@ -142,7 +148,142 @@ function prePopulateDb(): DbSchema {
     });
   }
 
-  return { items, clusterConfigs: configs };
+  const DEFAULT_USERS = [
+    {
+      fullName: "Jane Doe",
+      username: "janedoe",
+      email: "jane@universitas.ac.id",
+      institution: "Universitas Negeri",
+      phone: "+62 812 3456 7891",
+      role: "admin",
+      avatar: "",
+      passwordHash: "admin123",
+    },
+    {
+      fullName: "Siswa Perdana",
+      username: "siswaperdana",
+      email: "siswa@universitas.ac.id",
+      institution: "Universitas Negeri",
+      phone: "+62 812 9876 5432",
+      role: "student",
+      avatar: "",
+      passwordHash: "student123",
+      id: "STU-2408",
+      joined: "2025-09-01",
+      status: "Active",
+    },
+    {
+      fullName: "Ayu Lestari",
+      username: "ayulestari",
+      email: "student1@univ.edu",
+      institution: "State University",
+      phone: "",
+      role: "student",
+      avatar: "",
+      passwordHash: "student123",
+      id: "STU-2400",
+      joined: "2025-01-15",
+      status: "Inactive",
+    },
+    {
+      fullName: "Budi Santoso",
+      username: "budisantoso",
+      email: "student2@univ.edu",
+      institution: "State University",
+      phone: "",
+      role: "student",
+      avatar: "",
+      passwordHash: "student123",
+      id: "STU-2401",
+      joined: "2025-02-15",
+      status: "Active",
+    },
+    {
+      fullName: "Citra Dewi",
+      username: "citradewi",
+      email: "student3@univ.edu",
+      institution: "State University",
+      phone: "",
+      role: "student",
+      avatar: "",
+      passwordHash: "student123",
+      id: "STU-2402",
+      joined: "2025-03-15",
+      status: "Active",
+    },
+    {
+      fullName: "Dimas Aji",
+      username: "dimasaji",
+      email: "student4@univ.edu",
+      institution: "State University",
+      phone: "",
+      role: "student",
+      avatar: "",
+      passwordHash: "student123",
+      id: "STU-2403",
+      joined: "2025-04-15",
+      status: "Active",
+    },
+    {
+      fullName: "Eka Putri",
+      username: "ekaputri",
+      email: "student5@univ.edu",
+      institution: "State University",
+      phone: "",
+      role: "student",
+      avatar: "",
+      passwordHash: "student123",
+      id: "STU-2404",
+      joined: "2025-05-15",
+      status: "Inactive",
+    },
+    {
+      fullName: "Farhan R.",
+      username: "farhanr",
+      email: "student6@univ.edu",
+      institution: "State University",
+      phone: "",
+      role: "student",
+      avatar: "",
+      passwordHash: "student123",
+      id: "STU-2405",
+      joined: "2025-06-15",
+      status: "Active",
+    },
+    {
+      fullName: "Gita Wulandari",
+      username: "gitawulandari",
+      email: "student7@univ.edu",
+      institution: "State University",
+      phone: "",
+      role: "student",
+      avatar: "",
+      passwordHash: "student123",
+      id: "STU-2406",
+      joined: "2025-07-15",
+      status: "Active",
+    },
+    {
+      fullName: "Hadi Pratama",
+      username: "hadipratama",
+      email: "student8@univ.edu",
+      institution: "State University",
+      phone: "",
+      role: "student",
+      avatar: "",
+      passwordHash: "student123",
+      id: "STU-2407",
+      joined: "2025-08-15",
+      status: "Active",
+    },
+  ];
+
+  return {
+    items,
+    clusterConfigs: configs,
+    dbscanSettings: { eps: 0.35, minSamples: 3, featureMode: "both" },
+    users: DEFAULT_USERS
+  };
 }
 
 // IO Helpers
@@ -156,11 +297,148 @@ async function loadDb(): Promise<DbSchema> {
     throw new Error("Cannot load DB on the client");
   }
 
+  const DEFAULT_USERS = [
+    {
+      fullName: "Jane Doe",
+      username: "janedoe",
+      email: "jane@universitas.ac.id",
+      institution: "Universitas Negeri",
+      phone: "+62 812 3456 7891",
+      role: "admin",
+      avatar: "",
+      passwordHash: "admin123",
+    },
+    {
+      fullName: "Siswa Perdana",
+      username: "siswaperdana",
+      email: "siswa@universitas.ac.id",
+      institution: "Universitas Negeri",
+      phone: "+62 812 9876 5432",
+      role: "student",
+      avatar: "",
+      passwordHash: "student123",
+      id: "STU-2408",
+      joined: "2025-09-01",
+      status: "Active",
+    },
+    {
+      fullName: "Ayu Lestari",
+      username: "ayulestari",
+      email: "student1@univ.edu",
+      institution: "State University",
+      phone: "",
+      role: "student",
+      avatar: "",
+      passwordHash: "student123",
+      id: "STU-2400",
+      joined: "2025-01-15",
+      status: "Inactive",
+    },
+    {
+      fullName: "Budi Santoso",
+      username: "budisantoso",
+      email: "student2@univ.edu",
+      institution: "State University",
+      phone: "",
+      role: "student",
+      avatar: "",
+      passwordHash: "student123",
+      id: "STU-2401",
+      joined: "2025-02-15",
+      status: "Active",
+    },
+    {
+      fullName: "Citra Dewi",
+      username: "citradewi",
+      email: "student3@univ.edu",
+      institution: "State University",
+      phone: "",
+      role: "student",
+      avatar: "",
+      passwordHash: "student123",
+      id: "STU-2402",
+      joined: "2025-03-15",
+      status: "Active",
+    },
+    {
+      fullName: "Dimas Aji",
+      username: "dimasaji",
+      email: "student4@univ.edu",
+      institution: "State University",
+      phone: "",
+      role: "student",
+      avatar: "",
+      passwordHash: "student123",
+      id: "STU-2403",
+      joined: "2025-04-15",
+      status: "Active",
+    },
+    {
+      fullName: "Eka Putri",
+      username: "ekaputri",
+      email: "student5@univ.edu",
+      institution: "State University",
+      phone: "",
+      role: "student",
+      avatar: "",
+      passwordHash: "student123",
+      id: "STU-2404",
+      joined: "2025-05-15",
+      status: "Inactive",
+    },
+    {
+      fullName: "Farhan R.",
+      username: "farhanr",
+      email: "student6@univ.edu",
+      institution: "State University",
+      phone: "",
+      role: "student",
+      avatar: "",
+      passwordHash: "student123",
+      id: "STU-2405",
+      joined: "2025-06-15",
+      status: "Active",
+    },
+    {
+      fullName: "Gita Wulandari",
+      username: "gitawulandari",
+      email: "student7@univ.edu",
+      institution: "State University",
+      phone: "",
+      role: "student",
+      avatar: "",
+      passwordHash: "student123",
+      id: "STU-2406",
+      joined: "2025-07-15",
+      status: "Active",
+    },
+    {
+      fullName: "Hadi Pratama",
+      username: "hadipratama",
+      email: "student8@univ.edu",
+      institution: "State University",
+      phone: "",
+      role: "student",
+      avatar: "",
+      passwordHash: "student123",
+      id: "STU-2407",
+      joined: "2025-08-15",
+      status: "Active",
+    },
+  ];
+
   try {
     const fs = await import("fs/promises");
     const dbPath = await getDbPath();
     const data = await fs.readFile(dbPath, "utf-8");
     memoryDb = JSON.parse(data);
+    
+    // Add users if missing from server db
+    if (!memoryDb!.users) {
+      memoryDb!.users = DEFAULT_USERS;
+      await saveDb(memoryDb!);
+    }
+    
     return memoryDb!;
   } catch (error) {
     if (memoryDb) return memoryDb;
@@ -199,7 +477,7 @@ export const getClusters = createServerFn({ method: "GET" })
     return db.clusterConfigs;
   });
 
-export const addDatasetItem = (createServerFn({ method: "POST" })
+export const addDatasetItem = createServerFn({ method: "POST" })
   .handler(async ({ data }: any) => {
     const db = await loadDb();
     
@@ -216,15 +494,23 @@ export const addDatasetItem = (createServerFn({ method: "POST" })
     db.items.push(newItem);
     await saveDb(db);
     return newItem;
-  })) as any;
+  });
 
-export const deleteDatasetItem = (createServerFn({ method: "POST" })
+export const deleteDatasetItem = createServerFn({ method: "POST" })
   .handler(async ({ data: id }: any) => {
     const db = await loadDb();
     db.items = db.items.filter(i => i.id !== id);
     await saveDb(db);
     return { success: true };
-  })) as any;
+  });
+
+export const updateDatasetItem = createServerFn({ method: "POST" })
+  .handler(async ({ data }: any) => {
+    const db = await loadDb();
+    db.items = db.items.map(i => i.id === data.id ? { ...i, ...data } : i);
+    await saveDb(db);
+    return { success: true };
+  });
 
 export const getDashboardStats = createServerFn({ method: "GET" })
   .handler(async () => {
@@ -233,14 +519,16 @@ export const getDashboardStats = createServerFn({ method: "GET" })
     const totalDataset = db.items.filter(i => !i.isSynthetic).length;
     const totalAnalysis = db.items.length; // total points in system
     
+    const settings = db.dbscanSettings || { eps: 0.35, minSamples: 3, featureMode: "both" };
+    const weights = buildWeights(settings.featureMode);
+
     // Run a default DBSCAN to estimate clusters
-    // Using eps=0.3, minSamples=4, featureMode=both
     const dbscanInputs: DBSCANInputPoint[] = db.items.map(item => ({
       id: item.id,
       features: [item.hue, item.saturation, item.value, item.circularity, item.aspectRatio]
     }));
     const normalized = normalizeFeatures(dbscanInputs);
-    const clusterResults = runDBSCAN(normalized, 0.05, 4, [1, 1, 1, 1, 1]);
+    const clusterResults = runDBSCAN(normalized, settings.eps, settings.minSamples, weights);
     
     const uniqueClusters = new Set(
       Array.from(clusterResults.values())
@@ -286,21 +574,86 @@ export const getDashboardStats = createServerFn({ method: "GET" })
     };
   });
 
-export const updateClusterConfigs = (createServerFn({ method: "POST" })
+export const getStudentDashboard = createServerFn({ method: "GET" })
+  .handler(async () => {
+    const db = await loadDb();
+
+    // Only real (non-synthetic) items represent actual student uploads
+    const realItems = db.items.filter(i => !i.isSynthetic);
+    const totalAnalysis = realItems.length;
+
+    // Count items uploaded this week (last 7 days)
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const thisWeekCount = realItems.filter(i => {
+      if (!i.uploaded) return false;
+      return new Date(i.uploaded) >= oneWeekAgo;
+    }).length;
+
+    // Sort items newest first
+    const sortedItems = [...realItems].sort((a, b) => {
+      const da = new Date(a.uploaded || "1970-01-01").getTime();
+      const db2 = new Date(b.uploaded || "1970-01-01").getTime();
+      return db2 - da;
+    });
+
+    const latestItem = sortedItems[0] || null;
+
+    // Build a human-readable cluster label from clusterConfigs
+    const getClusterLabel = (fruitName: string): string => {
+      const config = db.clusterConfigs.find(c =>
+        c.label.toLowerCase().includes(fruitName.toLowerCase())
+      );
+      if (config) return `${config.label.split(" — ")[0]} — ${config.id}`;
+      return fruitName;
+    };
+
+    const latestResult = latestItem ? getClusterLabel(latestItem.fruit) : "Belum ada";
+    const latestUploaded = latestItem ? latestItem.uploaded : "";
+
+    // 5 most-recent items for "Lanjutkan pekerjaan" list
+    const recentItems = sortedItems.slice(0, 5).map(item => ({
+      id: item.id,
+      name: item.name,
+      fruit: item.fruit,
+      uploaded: item.uploaded,
+      clusterLabel: getClusterLabel(item.fruit),
+    }));
+
+    // Fruit frequency distribution (top 6)
+    const counts: Record<string, number> = {};
+    realItems.forEach(i => { counts[i.fruit] = (counts[i.fruit] || 0) + 1; });
+    const fruitDistribution = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([name, count]) => ({ name, count }));
+
+    return {
+      totalAnalysis,
+      totalImages: totalAnalysis,
+      thisWeekCount,
+      latestResult,
+      latestUploaded,
+      recentItems,
+      fruitDistribution,
+    };
+  });
+
+export const updateClusterConfigs = createServerFn({ method: "POST" })
   .handler(async ({ data: configs }: any) => {
     const db = await loadDb();
     db.clusterConfigs = configs;
     await saveDb(db);
     return configs;
-  })) as any;
-export const updateClusterConfigItem = (createServerFn({ method: "POST" })
+  });
+export const updateClusterConfigItem = createServerFn({ method: "POST" })
   .handler(async ({ data: config }: any) => {
     const db = await loadDb();
     db.clusterConfigs = db.clusterConfigs.map(c => c.id === config.id ? config : c);
     await saveDb(db);
     return db.clusterConfigs;
-  })) as any;
-export const addClusterConfigItem = (createServerFn({ method: "POST" })
+  });
+export const addClusterConfigItem = createServerFn({ method: "POST" })
   .handler(async ({ data }: any) => {
     const db = await loadDb();
     const nextId = `C-${db.clusterConfigs.length + 1}`;
@@ -308,19 +661,13 @@ export const addClusterConfigItem = (createServerFn({ method: "POST" })
     db.clusterConfigs.push(newConfig);
     await saveDb(db);
     return newConfig;
-  })) as any;
-export const runDBSCANClustering = (createServerFn({ method: "POST" })
+  });
+export const runDBSCANClustering = createServerFn({ method: "POST" })
   .handler(async ({ data: { eps, minSamples, featureMode, tempPoint, tempPoints } }: any) => {
     const db = await loadDb();
     
-    // Define weights based on featureMode
-    // features: [hue, saturation, value, circularity, aspectRatio]
-    let weights = [1, 1, 1, 1, 1];
-    if (featureMode === "color") {
-      weights = [1.5, 1.0, 1.0, 0, 0];
-    } else if (featureMode === "shape") {
-      weights = [0, 0, 0, 1.5, 1.0];
-    }
+    // Build weights for expanded feature space [sinH, cosH, sat, val, circ, ar]
+    const weights = buildWeights(featureMode);
 
     const items = [...db.items];
     
@@ -380,13 +727,52 @@ export const runDBSCANClustering = (createServerFn({ method: "POST" })
     // Normalize
     const normalized = normalizeFeatures(dbscanInputs);
 
-    // Run DBSCAN
-    const clusterResults = runDBSCAN(normalized, eps, minSamples, weights);
+    // Run DBSCAN using Python script, fallback to TS if it fails
+    let clusterResults: Map<string, any>;
+    try {
+      const path = await import("path");
+      const { execSync } = await import("child_process");
+      const scriptPath = path.resolve("src/lib/dbscan.py");
+      const payload = JSON.stringify({
+        points: dbscanInputs,
+        eps: eps,
+        minSamples: minSamples,
+        weights: weights,
+      });
+
+      const output = execSync(`py -3 "${scriptPath}"`, {
+        input: payload,
+        encoding: "utf-8",
+        maxBuffer: 10 * 1024 * 1024, // 10MB
+      });
+
+      const parsed = JSON.parse(output);
+      clusterResults = new Map(Object.entries(parsed));
+    } catch (err) {
+      console.warn("Python DBSCAN failed, falling back to TypeScript implementation:", err);
+      clusterResults = runDBSCAN(normalized, eps, minSamples, weights);
+    }
+
+    // Apply nearest-neighbor fallback: TEMP points that are still noise
+    // adopt the cluster of their closest non-noise neighbor so the result
+    // always shows a real fruit label instead of "Derau".
+    const tempIdList: string[] = [
+      ...(tempPoints ? tempPoints.map((tp: any, i: number) => (tp.id as string) || `TEMP-RUN-${i}`) : []),
+      ...(tempPoint ? ["TEMP-RUN"] : []),
+    ];
+    const tempIds = new Set<string>(tempIdList);
+
+    for (const tid of tempIds) {
+      const r = clusterResults.get(tid);
+      if (r && r.clusterId === -1) {
+        const fallback = assignNearestCluster(tid, normalized, clusterResults, weights);
+        clusterResults.set(tid, fallback);
+      }
+    }
 
     // Collect result points
     const resultPoints = items.map(item => {
       const dbscanRes = clusterResults.get(item.id);
-      
       return {
         ...item,
         clusterId: dbscanRes ? dbscanRes.clusterId : -1,
@@ -458,16 +844,191 @@ export const runDBSCANClustering = (createServerFn({ method: "POST" })
       };
     });
 
+    // ── Prototype-based classification for TEMP (uploaded) points ──────────
+    // The majority-vote cluster label can fail when DB items have mixed/unknown
+    // fruit names. For uploaded images we directly classify by nearest prototype.
+    const PROTOTYPES = [
+      { fruit: "Apel",     configKey: "apel",     hue: 12,  sat: 0.80, val: 0.75, circ: 0.92, ar: 1.02 },
+      { fruit: "Jeruk",    configKey: "jeruk",    hue: 28,  sat: 0.85, val: 0.85, circ: 0.88, ar: 0.98 },
+      { fruit: "Pisang",   configKey: "pisang",   hue: 52,  sat: 0.90, val: 0.88, circ: 0.42, ar: 2.40 },
+      { fruit: "Mangga",   configKey: "mangga",   hue: 42,  sat: 0.72, val: 0.76, circ: 0.76, ar: 1.34 },
+      { fruit: "Anggur",   configKey: "anggur",   hue: 282, sat: 0.62, val: 0.42, circ: 0.88, ar: 0.92 },
+      { fruit: "Stroberi", configKey: "stroberi", hue: 352, sat: 0.87, val: 0.77, circ: 0.84, ar: 0.96 },
+      { fruit: "Lemon",    configKey: "lemon",    hue: 55,  sat: 0.75, val: 0.85, circ: 0.83, ar: 1.18 },
+      { fruit: "Ceri",     configKey: "ceri",     hue: 350, sat: 0.85, val: 0.65, circ: 0.94, ar: 1.00 },
+      { fruit: "Mangga",   configKey: "mangga",   hue: 90,  sat: 0.60, val: 0.65, circ: 0.72, ar: 1.40 }, // green mango
+    ];
+
+    const hueDist = (h1: number, h2: number) => {
+      const d = Math.abs(h1 - h2) % 360;
+      return d > 180 ? 360 - d : d;
+    };
+
+    const classifyByPrototype = (hue: number, sat: number, val: number, circ: number, ar: number) => {
+      let bestProto = PROTOTYPES[0];
+      let bestScore = Infinity;
+      for (const p of PROTOTYPES) {
+        const score =
+          (hueDist(hue, p.hue) / 180) * 2.5 +
+          Math.abs(sat - p.sat) +
+          Math.abs(val - p.val) +
+          Math.abs(circ - p.circ) * 2.0 +
+          Math.abs(ar - p.ar) * 0.5;
+        if (score < bestScore) { bestScore = score; bestProto = p; }
+      }
+      return bestProto;
+    };
+
+    // Apply prototype override to all TEMP (uploaded) points
+    for (const tid of tempIdList) {
+      const rawItem = items.find(i => i.id === tid);
+      if (!rawItem) continue;
+
+      const proto = classifyByPrototype(
+        rawItem.hue, rawItem.saturation, rawItem.value,
+        rawItem.circularity, rawItem.aspectRatio
+      );
+
+      // Find the matching clusterConfig
+      const config = clusterConfigs.find(c =>
+        c.label.toLowerCase().includes(proto.configKey.toLowerCase())
+      );
+
+      const ptIdx = processedPoints.findIndex(p => p.id === tid);
+      if (ptIdx !== -1) {
+        processedPoints[ptIdx] = {
+          ...processedPoints[ptIdx],
+          cluster: config ? config.id : `C-${proto.fruit}`,
+          clusterLabel: config ? config.label : `${proto.fruit}`,
+        };
+      }
+    }
+    // ── End prototype override ─────────────────────────────────────────────
+
     return {
       points: processedPoints,
       clusterCount: uniqueClusterIds.length,
       noiseCount: processedPoints.filter(p => p.clusterId === -1).length,
     };
-  })) as any;
-export const deleteClusterConfigItem = (createServerFn({ method: "POST" })
+  });
+export const deleteClusterConfigItem = createServerFn({ method: "POST" })
   .handler(async ({ data: id }: any) => {
     const db = await loadDb();
     db.clusterConfigs = db.clusterConfigs.filter(c => c.id !== id);
     await saveDb(db);
     return db.clusterConfigs;
-  })) as any;
+  });
+
+export const saveClusteringResults = createServerFn({ method: "POST" })
+  .handler(async ({ data: { eps, minSamples, featureMode } }: any) => {
+    const db = await loadDb();
+    
+    // Save settings
+    db.dbscanSettings = { eps, minSamples, featureMode };
+    
+    // Run DBSCAN on all current items
+    const weights = buildWeights(featureMode);
+    const dbscanInputs: DBSCANInputPoint[] = db.items.map(item => ({
+      id: item.id,
+      features: [item.hue, item.saturation, item.value, item.circularity, item.aspectRatio],
+      item
+    }));
+    
+    const normalized = normalizeFeatures(dbscanInputs);
+    const clusterResults = runDBSCAN(normalized, eps, minSamples, weights);
+    
+    // Count dominant fruit type in each cluster
+    const clusterFruitMapping = new Map<number, string>();
+    const uniqueClusterIds = Array.from(new Set(Array.from(clusterResults.values()).map(v => v.clusterId))).filter(id => id !== -1);
+    
+    const pointsWithCid = db.items.map(item => {
+      const res = clusterResults.get(item.id);
+      return { ...item, clusterId: res ? res.clusterId : -1 };
+    });
+    
+    for (const cid of uniqueClusterIds) {
+      const clusterPoints = pointsWithCid.filter(p => p.clusterId === cid);
+      const counts: Record<string, number> = {};
+      for (const p of clusterPoints) {
+        const fruit = p.fruit || "Unknown";
+        counts[fruit] = (counts[fruit] || 0) + 1;
+      }
+      let dominantFruit = "Unknown";
+      let maxCount = -1;
+      for (const [fruit, count] of Object.entries(counts)) {
+        if (count > maxCount) {
+          maxCount = count;
+          dominantFruit = fruit;
+        }
+      }
+      clusterFruitMapping.set(cid, dominantFruit);
+    }
+    
+    // Update all items in DB with their calculated clusters
+    db.items = db.items.map(item => {
+      const res = clusterResults.get(item.id);
+      const clusterId = res ? res.clusterId : -1;
+      const isCore = res ? res.isCore : false;
+      const isBorder = res ? res.isBorder : false;
+      const isNoise = res ? res.isNoise : true;
+      
+      let clusterLabel = "Derau (Noise)";
+      let clusterIdStr = "C-6";
+      
+      const noiseConfig = db.clusterConfigs.find(c => c.label.includes("Derau") || c.label.includes("Noise"));
+      if (noiseConfig) {
+        clusterLabel = noiseConfig.label;
+        clusterIdStr = noiseConfig.id;
+      }
+      
+      if (clusterId !== -1) {
+        const mappedFruit = clusterFruitMapping.get(clusterId);
+        const config = db.clusterConfigs.find(c =>
+          mappedFruit && c.label.toLowerCase().includes(mappedFruit.toLowerCase())
+        );
+        if (config) {
+          clusterLabel = config.label;
+          clusterIdStr = config.id;
+        } else {
+          clusterLabel = `Cluster ${clusterId + 1}`;
+          clusterIdStr = `C-${clusterId + 1}`;
+        }
+      }
+      
+      return {
+        ...item,
+        clusterId,
+        isCore,
+        isBorder,
+        isNoise,
+        cluster: clusterIdStr,
+        clusterLabel,
+      };
+    });
+    
+    await saveDb(db);
+    return { success: true, settings: db.dbscanSettings };
+  });
+
+export const getScatterPlotData = createServerFn({ method: "GET" })
+  .handler(async () => {
+    const db = await loadDb();
+    return {
+      items: db.items,
+      settings: db.dbscanSettings || { eps: 0.35, minSamples: 3, featureMode: "both" }
+    };
+  });
+
+export const getDbUsers = createServerFn({ method: "GET" })
+  .handler(async () => {
+    const db = await loadDb();
+    return db.users || [];
+  });
+
+export const saveDbUsers = createServerFn({ method: "POST" })
+  .handler(async ({ data: users }: any) => {
+    const db = await loadDb();
+    db.users = users;
+    await saveDb(db);
+    return db.users;
+  });

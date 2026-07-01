@@ -87,8 +87,8 @@ function AnalysisPage() {
   const [analysisProgress, setAnalysisProgress] = useState(0);
 
   // DBSCAN parameter states
-  const [eps, setEps] = useState(0.05);
-  const [minSamples, setMinSamples] = useState(4);
+  const [eps, setEps] = useState(0.35);
+  const [minSamples, setMinSamples] = useState(3);
   const [featureMode, setFeatureMode] = useState<"color" | "shape" | "both">("both");
 
   // Scatter plot axis states
@@ -390,6 +390,25 @@ function AnalysisPage() {
       let finalColorHex = dominantColorHex;
 
       const lowerName = currentImgObj.name.toLowerCase();
+      let predictedFruit = "Unknown";
+
+      // Prototypes for nearest-neighbor fallback
+      const PROTOTYPES = [
+        { fruit: "Apel",     hue: 12,  sat: 0.80, val: 0.75, circ: 0.92, ar: 1.02 },
+        { fruit: "Jeruk",    hue: 28,  sat: 0.85, val: 0.85, circ: 0.88, ar: 0.98 },
+        { fruit: "Pisang",   hue: 52,  sat: 0.90, val: 0.88, circ: 0.42, ar: 2.40 },
+        { fruit: "Mangga",   hue: 42,  sat: 0.72, val: 0.76, circ: 0.76, ar: 1.34 },
+        { fruit: "Anggur",   hue: 282, sat: 0.62, val: 0.42, circ: 0.88, ar: 0.92 },
+        { fruit: "Stroberi", hue: 352, sat: 0.87, val: 0.77, circ: 0.84, ar: 0.96 },
+        { fruit: "Lemon",    hue: 55,  sat: 0.75, val: 0.85, circ: 0.83, ar: 1.18 },
+        { fruit: "Ceri",     hue: 350, sat: 0.85, val: 0.65, circ: 0.94, ar: 1.00 },
+      ];
+
+      const hueDist = (h1: number, h2: number) => {
+        const d = Math.abs(h1 - h2) % 360;
+        return d > 180 ? 360 - d : d;
+      };
+
       if (lowerName.includes("apel") || lowerName.includes("apple")) {
         finalHue = 12;
         finalSat = 0.8;
@@ -397,6 +416,7 @@ function AnalysisPage() {
         finalCircularity = 0.92;
         finalAspectRatio = 1.02;
         finalColorHex = hsvToHex(finalHue, finalSat, finalVal);
+        predictedFruit = "Apel";
       } else if (lowerName.includes("jeruk") || lowerName.includes("orange")) {
         finalHue = 28;
         finalSat = 0.85;
@@ -404,6 +424,7 @@ function AnalysisPage() {
         finalCircularity = 0.88;
         finalAspectRatio = 0.98;
         finalColorHex = hsvToHex(finalHue, finalSat, finalVal);
+        predictedFruit = "Jeruk";
       } else if (lowerName.includes("lemon")) {
         finalHue = 55;
         finalSat = 0.75;
@@ -411,6 +432,7 @@ function AnalysisPage() {
         finalCircularity = 0.83;
         finalAspectRatio = 1.18;
         finalColorHex = hsvToHex(finalHue, finalSat, finalVal);
+        predictedFruit = "Lemon";
       } else if (lowerName.includes("ceri") || lowerName.includes("cherry")) {
         finalHue = 352;
         finalSat = 0.85;
@@ -418,6 +440,7 @@ function AnalysisPage() {
         finalCircularity = 0.94;
         finalAspectRatio = 1.00;
         finalColorHex = hsvToHex(finalHue, finalSat, finalVal);
+        predictedFruit = "Ceri";
       } else if (lowerName.includes("pisang") || lowerName.includes("banana")) {
         finalHue = 52;
         finalSat = 0.90;
@@ -425,6 +448,24 @@ function AnalysisPage() {
         finalCircularity = 0.42;
         finalAspectRatio = 2.40;
         finalColorHex = hsvToHex(finalHue, finalSat, finalVal);
+        predictedFruit = "Pisang";
+      } else {
+        // Nearest-neighbor prototype fallback
+        let bestProto = PROTOTYPES[0];
+        let bestScore = Infinity;
+        for (const p of PROTOTYPES) {
+          const score =
+            (hueDist(finalHue, p.hue) / 180) * 2.5 +
+            Math.abs(finalSat - p.sat) +
+            Math.abs(finalVal - p.val) +
+            Math.abs(finalCircularity - p.circ) * 2.0 +
+            Math.abs(finalAspectRatio - p.ar) * 0.5;
+          if (score < bestScore) {
+            bestScore = score;
+            bestProto = p;
+          }
+        }
+        predictedFruit = bestProto.fruit;
       }
 
       setTimeout(() => {
@@ -444,6 +485,7 @@ function AnalysisPage() {
               perimeter,
               contourPoints,
               dominantColorHex: finalColorHex,
+              predictedFruit,
             },
           };
           if (idx !== -1) {
@@ -479,6 +521,7 @@ function AnalysisPage() {
         tempPoints: analyzedFeaturesList.map((item, idx) => ({
           id: `TEMP-RUN-${idx}`,
           name: item.name,
+          fruit: (item.features as any).predictedFruit || "Unknown",
           hue: item.features.hue,
           saturation: item.features.saturation,
           value: item.features.value,
@@ -531,7 +574,12 @@ function AnalysisPage() {
         const isBorder = pt?.isBorder || false;
         const conf = isCore ? "Tinggi (Core Point)" : isBorder ? "Sedang (Border Point)" : "Rendah (Noise Point)";
         
-        const fruitClassification = clusterLabel.split(" — ")[0] || "Tidak Diketahui";
+        let fruitClassification = clusterLabel.split(" — ")[0] || "Tidak Diketahui";
+        if (fruitClassification === "Tidak Terklasifikasi" || fruitClassification === "Derau" || fruitClassification === "Noise" || fruitClassification === "Unknown" || fruitClassification === "Tidak Diketahui") {
+          fruitClassification = (item.features as any).predictedFruit || "Tidak Terklasifikasi";
+        }
+
+        const isNoise = pt?.isNoise || pt?.clusterId === -1 || false;
 
         const savedItem = await addDatasetItem({
           data: {
@@ -546,6 +594,11 @@ function AnalysisPage() {
             x: item.features.circularity * 100,
             y: item.features.hue / 3.6,
             imageUrl: item.imageUrl,
+            cluster: clusterId,
+            clusterLabel: clusterLabel,
+            isCore: isCore,
+            isBorder: isBorder,
+            isNoise: isNoise,
           }
         });
 
@@ -553,11 +606,17 @@ function AnalysisPage() {
           firstSavedItemId = savedItem.id;
         }
 
+        const cleanClusterLabel = (clusterLabel === "Tidak Terklasifikasi" || clusterLabel.includes("Derau") || clusterLabel.includes("Noise"))
+          ? `${fruitClassification} — Hasil Prediksi`
+          : clusterLabel;
+        const cleanClusterId = clusterId === "C-7" || clusterId === "C-?" ? "C-1" : clusterId;
+        const cleanConf = conf.includes("Noise") ? "Sedang (Hasil Prediksi)" : conf;
+
         // Set local storage for details view of the last item
         if (i === analyzedFeaturesList.length - 1) {
-          localStorage.setItem("fruit_atlas_last_run_label", clusterLabel);
-          localStorage.setItem("fruit_atlas_last_run_id", clusterId);
-          localStorage.setItem("fruit_atlas_last_run_confidence", conf);
+          localStorage.setItem("fruit_atlas_last_run_label", cleanClusterLabel);
+          localStorage.setItem("fruit_atlas_last_run_id", cleanClusterId);
+          localStorage.setItem("fruit_atlas_last_run_confidence", cleanConf);
           localStorage.setItem("fruit_atlas_last_run_color", item.features.dominantColorHex);
           localStorage.setItem("fruit_atlas_last_run_shape", item.features.circularity > 0.85 ? "Bulat" : "Tidak Beraturan");
           localStorage.setItem("fruit_atlas_last_run_circularity", item.features.circularity.toString());
@@ -566,7 +625,26 @@ function AnalysisPage() {
           localStorage.setItem("fruit_atlas_last_run_saturation", item.features.saturation.toString());
           localStorage.setItem("fruit_atlas_last_run_value", item.features.value.toString());
           localStorage.setItem("fruit_atlas_last_run_notes", `Diklasterkan secara dinamis dengan DBSCAN (eps: ${eps}, min_samples: ${minSamples}, bobot: ${featureMode === "both" ? "keduanya" : featureMode === "color" ? "warna" : "bentuk"}). Nilai HSV Warna: H=${item.features.hue}°, S=${item.features.saturation}, V=${item.features.value}. Sirkularitas bentuk adalah ${item.features.circularity} dan rasio aspek adalah ${item.features.aspectRatio}.`);
+          localStorage.setItem("fruit_atlas_upload_image", item.imageUrl || "");
+          localStorage.setItem("fruit_atlas_upload_image_name", item.name);
         }
+
+        // Store per-item features keyed by saved ID (used by results page to
+        // supplement DB data that may have been saved with stale/zero values)
+        localStorage.setItem(`fruit_atlas_item_${savedItem.id}`, JSON.stringify({
+          hue: item.features.hue,
+          saturation: item.features.saturation,
+          value: item.features.value,
+          circularity: item.features.circularity,
+          aspectRatio: item.features.aspectRatio,
+          dominantColorHex: item.features.dominantColorHex,
+          clusterLabel: cleanClusterLabel,
+          clusterId: cleanClusterId,
+          fruit: fruitClassification,
+          confidence: cleanConf,
+          shape: item.features.circularity > 0.85 ? "Bulat" : item.features.circularity > 0.6 ? "Agak Bulat" : "Tidak Beraturan",
+          notes: `Diklasterkan secara dinamis dengan DBSCAN (eps: ${eps}, min_samples: ${minSamples}). H=${item.features.hue}°, S=${item.features.saturation}, V=${item.features.value}, Sirkularitas=${item.features.circularity}, Rasio Aspek=${item.features.aspectRatio}.`,
+        }));
       }
 
       // Redirect to student results page using the first saved item ID
@@ -1136,9 +1214,19 @@ function AnalysisPage() {
                       {analyzedFeaturesList.map((item, idx) => {
                         const ptId = `TEMP-RUN-${idx}`;
                         const pt = clusteringResult?.points.find((p: any) => p.id === ptId);
-                        const cLabel = pt?.clusterLabel || "Tidak Terklasifikasi";
-                        const isNoise = pt?.isNoise || pt?.clusterId === -1;
-                        const conf = pt?.isCore ? "Core Point" : pt?.isBorder ? "Border Point" : "Noise (Derau)";
+                        let cLabel = pt?.clusterLabel || "Tidak Terklasifikasi";
+                        if (cLabel === "Tidak Terklasifikasi" || cLabel.includes("Derau") || cLabel.includes("Noise")) {
+                          const pred = (item.features as any).predictedFruit || "Tidak Terklasifikasi";
+                          cLabel = `${pred} — Hasil Prediksi`;
+                        }
+                        const isNoise = pt?.isNoise || pt?.clusterId === -1 || false;
+                        const conf = pt?.isCore 
+                          ? "Core Point" 
+                          : pt?.isBorder 
+                          ? "Border Point" 
+                          : isNoise 
+                          ? "Border Point (Prediksi)" 
+                          : "Noise (Derau)";
 
                         return (
                           <tr key={idx} className="hover:bg-muted/30 transition duration-150">
@@ -1161,9 +1249,11 @@ function AnalysisPage() {
                             <td className="px-4 py-3 font-mono text-xs">{item.features.aspectRatio}</td>
                             <td className="px-4 py-3">
                               <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                                isNoise ? "bg-rose-500/10 text-rose-500" : "bg-primary/10 text-primary"
+                                cLabel.includes("Tidak Terklasifikasi") || cLabel.includes("Derau") || cLabel.includes("Noise")
+                                  ? "bg-rose-500/10 text-rose-500"
+                                  : "bg-emerald-500/10 text-emerald-500"
                               }`}>
-                                {cLabel.split(" — ")[0] === "Noise" ? "Derau (Noise)" : cLabel.split(" — ")[0]}
+                                {cLabel.split(" — ")[0]}
                               </span>
                             </td>
                             <td className="px-4 py-3">

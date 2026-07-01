@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell, Section } from "@/components/app/AppShell";
-import { students as mockStudents } from "@/lib/mock-data";
+import { getStoredUsers, saveStoredUsers } from "@/components/app/ProfilePage";
 import { UserPlus, KeyRound, Pencil, Trash2, Check, Copy } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -66,19 +66,81 @@ function StudentsPage() {
 
   // Initialize from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem("fruit_atlas_students");
-    if (saved) {
-      setStudentList(JSON.parse(saved));
-    } else {
-      setStudentList(mockStudents);
-      localStorage.setItem("fruit_atlas_students", JSON.stringify(mockStudents));
+    let isMounted = true;
+    async function loadData() {
+      const users = await getStoredUsers();
+      if (!isMounted) return;
+      
+      let needsSync = false;
+      const studentsOnly: Student[] = users
+        .filter((u) => u.role === "student")
+        .map((u) => {
+          if (!u.id) {
+            needsSync = true;
+            // Generate next available ID sequentially
+            const maxId = users.reduce((max, user) => {
+              if (user.id && user.id.startsWith("STU-")) {
+                const num = parseInt(user.id.replace("STU-", ""), 10);
+                return isNaN(num) ? max : Math.max(max, num);
+              }
+              return max;
+            }, 2399);
+            u.id = `STU-${maxId + 1}`;
+            u.joined = u.joined || new Date().toISOString().split("T")[0];
+            u.status = u.status || "Active";
+          }
+          return {
+            id: u.id,
+            name: u.fullName,
+            email: u.email,
+            institution: u.institution || "State University",
+            joined: u.joined || new Date().toISOString().split("T")[0],
+            status: u.status || "Active",
+          };
+        });
+        
+      setStudentList(studentsOnly);
+      setLoading(false);
+      
+      if (needsSync) {
+        await saveStoredUsers(users);
+      }
     }
-    setLoading(false);
+    loadData();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const saveToLocalStorage = (list: Student[]) => {
+  const saveToLocalStorage = async (list: Student[]) => {
     setStudentList(list);
-    localStorage.setItem("fruit_atlas_students", JSON.stringify(list));
+    
+    // Sync back to fruit_atlas_users!
+    const users = await getStoredUsers();
+    
+    // Separate admin users and student users
+    const adminUsers = users.filter((u) => u.role !== "student");
+    
+    // Map current studentList back to UserProfile objects
+    const updatedStudentUsers = list.map((s) => {
+      // Find existing user by ID first, then fallback to email
+      const existing = users.find((u) => (s.id && u.id === s.id) || u.email.toLowerCase() === s.email.toLowerCase());
+      return {
+        id: s.id,
+        fullName: s.name,
+        username: existing?.username || s.name.toLowerCase().replace(/\s+/g, ""),
+        email: s.email,
+        institution: s.institution,
+        phone: existing?.phone || "",
+        role: "student" as const,
+        avatar: existing?.avatar || "",
+        passwordHash: existing?.passwordHash || "student123", // default password
+        joined: s.joined,
+        status: s.status as "Active" | "Inactive",
+      };
+    });
+    
+    await saveStoredUsers([...adminUsers, ...updatedStudentUsers]);
   };
 
   // Action Triggers
@@ -169,13 +231,22 @@ function StudentsPage() {
     setDeletingStudent(null);
   };
 
-  const handleOpenResetPassword = (student: Student) => {
+  const handleOpenResetPassword = async (student: Student) => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
     let password = "";
     for (let i = 0; i < 10; i++) {
       password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     const generatedPassword = `Mhs-${password}`;
+
+    // Save the new password to fruit_atlas_users
+    const users = await getStoredUsers();
+    const updatedUsers = users.map((u) =>
+      u.email.toLowerCase() === student.email.toLowerCase()
+        ? { ...u, passwordHash: generatedPassword }
+        : u
+    );
+    await saveStoredUsers(updatedUsers);
 
     setResetDetails({
       name: student.name,

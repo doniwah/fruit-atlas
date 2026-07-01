@@ -24,6 +24,7 @@ import { Route as StudentUploadRouteImport } from './routes/student.upload'
 import { Route as StudentResultsRouteImport } from './routes/student.results'
 import { Route as StudentProfileRouteImport } from './routes/student.profile'
 import { Route as StudentAnalysisRouteImport } from './routes/student.analysis'
+import { Route as AdminUploadRouteImport } from './routes/admin.upload'
 import { Route as AdminStudentsRouteImport } from './routes/admin.students'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminResultsRouteImport } from './routes/admin.results'
@@ -109,6 +110,11 @@ const StudentAnalysisRoute = StudentAnalysisRouteImport.update({
   path: '/student/analysis',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminUploadRoute = AdminUploadRouteImport.update({
+  id: '/admin/upload',
+  path: '/admin/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminStudentsRoute = AdminStudentsRouteImport.update({
   id: '/admin/students',
   path: '/admin/students',
@@ -174,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/admin/results': typeof AdminResultsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/students': typeof AdminStudentsRoute
+  '/admin/upload': typeof AdminUploadRoute
   '/student/analysis': typeof StudentAnalysisRoute
   '/student/profile': typeof StudentProfileRoute
   '/student/results': typeof StudentResultsRoute
@@ -200,6 +207,7 @@ export interface FileRoutesByTo {
   '/admin/results': typeof AdminResultsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/students': typeof AdminStudentsRoute
+  '/admin/upload': typeof AdminUploadRoute
   '/student/analysis': typeof StudentAnalysisRoute
   '/student/profile': typeof StudentProfileRoute
   '/student/results': typeof StudentResultsRoute
@@ -227,6 +235,7 @@ export interface FileRoutesById {
   '/admin/results': typeof AdminResultsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/students': typeof AdminStudentsRoute
+  '/admin/upload': typeof AdminUploadRoute
   '/student/analysis': typeof StudentAnalysisRoute
   '/student/profile': typeof StudentProfileRoute
   '/student/results': typeof StudentResultsRoute
@@ -255,6 +264,7 @@ export interface FileRouteTypes {
     | '/admin/results'
     | '/admin/settings'
     | '/admin/students'
+    | '/admin/upload'
     | '/student/analysis'
     | '/student/profile'
     | '/student/results'
@@ -281,6 +291,7 @@ export interface FileRouteTypes {
     | '/admin/results'
     | '/admin/settings'
     | '/admin/students'
+    | '/admin/upload'
     | '/student/analysis'
     | '/student/profile'
     | '/student/results'
@@ -307,6 +318,7 @@ export interface FileRouteTypes {
     | '/admin/results'
     | '/admin/settings'
     | '/admin/students'
+    | '/admin/upload'
     | '/student/analysis'
     | '/student/profile'
     | '/student/results'
@@ -334,6 +346,7 @@ export interface RootRouteChildren {
   AdminResultsRoute: typeof AdminResultsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStudentsRoute: typeof AdminStudentsRoute
+  AdminUploadRoute: typeof AdminUploadRoute
   StudentAnalysisRoute: typeof StudentAnalysisRoute
   StudentProfileRoute: typeof StudentProfileRoute
   StudentResultsRoute: typeof StudentResultsRoute
@@ -449,6 +462,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentAnalysisRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/upload': {
+      id: '/admin/upload'
+      path: '/admin/upload'
+      fullPath: '/admin/upload'
+      preLoaderRoute: typeof AdminUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/students': {
       id: '/admin/students'
       path: '/admin/students'
@@ -534,6 +554,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminResultsRoute: AdminResultsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminStudentsRoute: AdminStudentsRoute,
+  AdminUploadRoute: AdminUploadRoute,
   StudentAnalysisRoute: StudentAnalysisRoute,
   StudentProfileRoute: StudentProfileRoute,
   StudentResultsRoute: StudentResultsRoute,

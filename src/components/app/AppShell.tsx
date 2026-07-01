@@ -4,16 +4,17 @@ import {
   FileText, Settings, User, LogOut, Upload, Image as ImageIcon,
   Microscope,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { ReactNode, useState, useEffect } from "react";
 
 type Item = { to: string; label: string; icon: typeof LayoutDashboard };
 
 const adminItems: Item[] = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/datasets", label: "Kelola Dataset", icon: Database },
+  { to: "/admin/upload", label: "Unggah Gambar", icon: Upload },
+  { to: "/admin/analysis", label: "Analisis Gambar", icon: FlaskConical },
   { to: "/admin/students", label: "Kelola Siswa", icon: Users },
   { to: "/admin/clusters", label: "Kelola Kluster", icon: Boxes },
-  { to: "/admin/analysis", label: "Analisis Gambar", icon: FlaskConical },
   { to: "/admin/results", label: "Analisis Hasil", icon: BarChart3 },
   { to: "/admin/reports", label: "Laporan", icon: FileText },
   { to: "/admin/settings", label: "Pengaturan", icon: Settings },
@@ -22,8 +23,7 @@ const adminItems: Item[] = [
 
 const studentItems: Item[] = [
   { to: "/student", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/student/upload", label: "Unggah Gambar", icon: Upload },
-  { to: "/student/analysis", label: "Analisis", icon: FlaskConical },
+  { to: "/student/upload", label: "Pilih Gambar", icon: ImageIcon },
   { to: "/student/results", label: "Hasil Analisis", icon: BarChart3 },
   { to: "/student/profile", label: "Profil", icon: User },
 ];
@@ -43,6 +43,39 @@ export function AppShell({
 }) {
   const items = role === "admin" ? adminItems : studentItems;
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    const loadUser = () => {
+      const stored = localStorage.getItem("fruit_atlas_current_user");
+      if (stored) {
+        try {
+          setCurrentUser(JSON.parse(stored));
+        } catch (e) {
+          // ignore
+        }
+      } else {
+        const defaultName = role === "admin" ? "Jane Doe" : "Siswa Perdana";
+        const defaultUsername = role === "admin" ? "janedoe" : "siswaperdana";
+        setCurrentUser({
+          fullName: defaultName,
+          username: defaultUsername,
+          role,
+          avatar: "",
+        });
+      }
+    };
+
+    loadUser();
+
+    window.addEventListener("storage", loadUser);
+    window.addEventListener("profileUpdate", loadUser);
+
+    return () => {
+      window.removeEventListener("storage", loadUser);
+      window.removeEventListener("profileUpdate", loadUser);
+    };
+  }, [role]);
 
   return (
     <div className="flex min-h-screen w-full bg-surface">
@@ -85,10 +118,34 @@ export function AppShell({
           </ul>
         </nav>
 
-        <div className="border-t border-border p-3">
+        <div className="border-t border-border p-3 space-y-2">
+          {currentUser && (
+            <div className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-muted/50 transition">
+              {currentUser.avatar ? (
+                <img
+                  src={currentUser.avatar}
+                  alt="Avatar"
+                  className="h-8 w-8 rounded-full object-cover border border-primary/20 shadow-sm"
+                />
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary border border-primary/5">
+                  <User className="h-4 w-4" />
+                </div>
+              )}
+              <div className="min-w-0 leading-tight">
+                <div className="text-xs font-semibold text-foreground truncate">{currentUser.fullName}</div>
+                <div className="text-[10px] text-muted-foreground truncate">@{currentUser.username}</div>
+              </div>
+            </div>
+          )}
           <Link
             to="/login"
-            className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                localStorage.removeItem("fruit_atlas_current_user");
+              }
+            }}
+            className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
           >
             <LogOut className="h-4 w-4" />
             Keluar
