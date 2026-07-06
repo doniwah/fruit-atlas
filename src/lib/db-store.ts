@@ -1011,11 +1011,120 @@ export const saveClusteringResults = createServerFn({ method: "POST" })
   });
 
 export const getScatterPlotData = createServerFn({ method: "GET" })
-  .handler(async () => {
+  .handler(async ({ data }: { data?: { eps?: number; minSamples?: number; featureMode?: "color" | "shape" | "both" } } = {}) => {
     const db = await loadDb();
+    const settings = {
+      eps: data?.eps ?? db.dbscanSettings?.eps ?? 0.35,
+      minSamples: data?.minSamples ?? db.dbscanSettings?.minSamples ?? 3,
+      featureMode: data?.featureMode ?? db.dbscanSettings?.featureMode ?? "both"
+    };
+
+    // Build weights and run DBSCAN dynamically on all current items
+    const weights = buildWeights(settings.featureMode);
+    const dbscanInputs: DBSCANInputPoint[] = db.items.map(item => ({
+      id: item.id,
+      features: [item.hue, item.saturation, item.value, item.circularity, item.aspectRatio],
+      item
+    }));
+
+    const normalized = normalizeFeatures(dbscanInputs);
+
+    let clusterResults: Map<string, any>;
+    try {
+      const path = await import("path");
+      const { execSync } = await import("child_process");
+      const scriptPath = path.resolve("src/lib/dbscan.py");
+      const payload = JSON.stringify({
+        points: dbscanInputs,
+        eps: settings.eps,
+        minSamples: settings.minSamples,
+        weights: weights,
+      });
+
+      const output = execSync(`py -3 "${scriptPath}"`, {
+        input: payload,
+        encoding: "utf-8",
+        maxBuffer: 10 * 1024 * 1024,
+      });
+
+      const parsed = JSON.parse(output);
+      clusterResults = new Map(Object.entries(parsed));
+    } catch (err) {
+      console.warn("Python DBSCAN failed in getScatterPlotData, falling back to TS:", err);
+      clusterResults = runDBSCAN(normalized, settings.eps, settings.minSamples, weights);
+    }
+
+    // Count dominant fruit type in each cluster
+    const clusterFruitMapping = new Map<number, string>();
+    const uniqueClusterIds = Array.from(new Set(Array.from(clusterResults.values()).map(v => v.clusterId))).filter(id => id !== -1);
+
+    const pointsWithCid = db.items.map(item => {
+      const res = clusterResults.get(item.id);
+      return { ...item, clusterId: res ? res.clusterId : -1 };
+    });
+
+    for (const cid of uniqueClusterIds) {
+      const clusterPoints = pointsWithCid.filter(p => p.clusterId === cid);
+      const counts: Record<string, number> = {};
+      for (const p of clusterPoints) {
+        const fruit = p.fruit || "Unknown";
+        counts[fruit] = (counts[fruit] || 0) + 1;
+      }
+      let dominantFruit = "Unknown";
+      let maxCount = -1;
+      for (const [fruit, count] of Object.entries(counts)) {
+        if (count > maxCount) {
+          maxCount = count;
+          dominantFruit = fruit;
+        }
+      }
+      clusterFruitMapping.set(cid, dominantFruit);
+    }
+
+    const clusteredItems = db.items.map(item => {
+      const res = clusterResults.get(item.id);
+      const clusterId = res ? res.clusterId : -1;
+      const isCore = res ? res.isCore : false;
+      const isBorder = res ? res.isBorder : false;
+      const isNoise = res ? res.isNoise : true;
+
+      let clusterLabel = "Derau (Noise)";
+      let clusterIdStr = "C-6";
+
+      const noiseConfig = db.clusterConfigs.find(c => c.label.includes("Derau") || c.label.includes("Noise"));
+      if (noiseConfig) {
+        clusterLabel = noiseConfig.label;
+        clusterIdStr = noiseConfig.id;
+      }
+
+      if (clusterId !== -1) {
+        const mappedFruit = clusterFruitMapping.get(clusterId);
+        const config = db.clusterConfigs.find(c =>
+          mappedFruit && c.label.toLowerCase().includes(mappedFruit.toLowerCase())
+        );
+        if (config) {
+          clusterLabel = config.label;
+          clusterIdStr = config.id;
+        } else {
+          clusterLabel = `Cluster ${clusterId + 1}`;
+          clusterIdStr = `C-${clusterId + 1}`;
+        }
+      }
+
+      return {
+        ...item,
+        clusterId,
+        isCore,
+        isBorder,
+        isNoise,
+        cluster: clusterIdStr,
+        clusterLabel,
+      };
+    });
+
     return {
-      items: db.items,
-      settings: db.dbscanSettings || { eps: 0.35, minSamples: 3, featureMode: "both" }
+      items: clusteredItems,
+      settings: settings
     };
   });
 

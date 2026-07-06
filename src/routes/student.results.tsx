@@ -13,6 +13,9 @@ export const Route = createFileRoute("/student/results")({
     return {
       id: (search.id as string) || undefined,
       ids: (search.ids as string) || undefined,
+      eps: search.eps ? parseFloat(search.eps as string) : undefined,
+      minSamples: search.minSamples ? parseInt(search.minSamples as string) : undefined,
+      featureMode: (search.featureMode as "color" | "shape" | "both") || undefined,
     };
   },
   component: ResultsPage,
@@ -36,13 +39,87 @@ interface ResultsData {
   imageUrl?: string;
 }
 
-const COLORS = ["#EF4444", "#10B981", "#3B82F6", "#F59E0B", "#8B5CF6", "#EC4899", "#EAB308", "#14B8A6"];
+const COLORS = ["#EF4444", "#10B981", "#F59E0B", "#3B82F6", "#8B5CF6", "#EC4899", "#EAB308", "#14B8A6"];
+
+const renderCustomDot = (props: any) => {
+  const { cx, cy, payload, fill } = props;
+  if (!cx || !cy) return null;
+
+  const cluster = payload?.cluster || "";
+  const clusterId = payload?.clusterId;
+  const isTemp = payload?.id?.startsWith("TEMP-RUN") || payload?.id === "Analisis Lokal" || payload?.id === "Selected";
+
+  // Check if it belongs to Cluster 1 (Apel/Jeruk/Tomat) -> Round Red
+  if (cluster === "C-1" || clusterId === 0) {
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={isTemp ? 9 : 7}
+        fill={fill || "#EF4444"}
+        stroke="#FFFFFF"
+        strokeWidth={isTemp ? 2.5 : 1}
+        fillOpacity={0.9}
+        className={isTemp ? "animate-pulse" : ""}
+      />
+    );
+  }
+
+  // Check if it belongs to Cluster 3 (Pisang) -> Long Yellow
+  if (cluster === "C-3" || clusterId === 2) {
+    return (
+      <rect
+        x={cx - (isTemp ? 4.5 : 3.5)}
+        y={cy - (isTemp ? 10.5 : 8.5)}
+        width={isTemp ? 9 : 7}
+        height={isTemp ? 21 : 17}
+        rx={isTemp ? 4.5 : 3.5}
+        fill={fill || "#F59E0B"}
+        stroke="#FFFFFF"
+        strokeWidth={isTemp ? 2.5 : 1}
+        fillOpacity={0.9}
+        className={isTemp ? "animate-pulse" : ""}
+      />
+    );
+  }
+
+  // Check if it belongs to Cluster 4 (Mangga) -> Oval Blue
+  if (cluster === "C-4" || clusterId === 3) {
+    return (
+      <ellipse
+        cx={cx}
+        cy={cy}
+        rx={isTemp ? 12 : 9}
+        ry={isTemp ? 7 : 5}
+        fill={fill || "#3B82F6"}
+        stroke="#FFFFFF"
+        strokeWidth={isTemp ? 2.5 : 1}
+        fillOpacity={0.9}
+        className={isTemp ? "animate-pulse" : ""}
+      />
+    );
+  }
+
+  // Fallback default (Grey Circle)
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={isTemp ? 8.5 : 5.5}
+      fill={fill || "#9CA3AF"}
+      stroke="#FFFFFF"
+      strokeWidth={isTemp ? 2.5 : 0.5}
+      fillOpacity={0.8}
+      className={isTemp ? "animate-pulse" : ""}
+    />
+  );
+};
 
 const CLUSTER_METADATA: Record<string, { color: string, border: string, bg: string, label: string }> = {
   "C-1": { color: "#EF4444", border: "border-red-500/30", bg: "bg-red-500/5", label: "Cluster 1" },
   "C-2": { color: "#10B981", border: "border-emerald-500/30", bg: "bg-emerald-500/5", label: "Cluster 2" },
-  "C-3": { color: "#3B82F6", border: "border-blue-500/30", bg: "bg-blue-500/5", label: "Cluster 3" },
-  "C-4": { color: "#F59E0B", border: "border-amber-500/30", bg: "bg-amber-500/5", label: "Cluster 4" },
+  "C-3": { color: "#F59E0B", border: "border-amber-500/30", bg: "bg-amber-500/5", label: "Cluster 3" },
+  "C-4": { color: "#3B82F6", border: "border-blue-500/30", bg: "bg-blue-500/5", label: "Cluster 4" },
   "C-5": { color: "#8B5CF6", border: "border-purple-500/30", bg: "bg-purple-500/5", label: "Cluster 5" },
   "C-8": { color: "#EC4899", border: "border-pink-500/30", bg: "bg-pink-500/5", label: "Cluster 8" },
   "C-9": { color: "#EAB308", border: "border-yellow-500/30", bg: "bg-yellow-500/5", label: "Cluster 9" },
@@ -183,7 +260,7 @@ const findRepresentative = (items: ResultsData[], stats: any) => {
 };
 
 function ResultsPage() {
-  const { id, ids } = Route.useSearch();
+  const { id, ids, eps, minSamples, featureMode } = Route.useSearch();
   const [results, setResults] = useState<ResultsData[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -204,7 +281,7 @@ function ResultsPage() {
   useEffect(() => {
     let isMounted = true;
     setChartLoading(true);
-    getScatterPlotData()
+    getScatterPlotData({ data: { eps, minSamples, featureMode } })
       .then((res: any) => {
         if (!isMounted) return;
         setScatterData(res.items);
@@ -470,11 +547,24 @@ function ResultsPage() {
     }
   };
 
-  const formattedScatterData = scatterData.map((pt: any) => ({
-    ...pt,
-    xCoord: mapFeatureToCoord(pt, xAxisKey),
-    yCoord: mapFeatureToCoord(pt, yAxisKey),
-  }));
+  const isTargetFruit = (fruitName: string) => {
+    const name = (fruitName || "").toLowerCase();
+    return (
+      name.includes("apel") || name.includes("apple") ||
+      name.includes("jeruk") || name.includes("orange") ||
+      name.includes("tomat") || name.includes("tomato") ||
+      name.includes("pisang") || name.includes("banana") ||
+      name.includes("mangga") || name.includes("mango")
+    );
+  };
+
+  const formattedScatterData = scatterData
+    .filter((pt: any) => pt.id.startsWith("TEMP-RUN") || results.some((r) => r.id === pt.id) || isTargetFruit(pt.fruit))
+    .map((pt: any) => ({
+      ...pt,
+      xCoord: mapFeatureToCoord(pt, xAxisKey),
+      yCoord: mapFeatureToCoord(pt, yAxisKey),
+    }));
 
   const selectedScatterPoint = formattedScatterData.filter((p: any) => results.some((r) => r.id === p.id));
   const otherScatterPoints = formattedScatterData.filter((p: any) => !results.some((r) => r.id === p.id));
@@ -526,9 +616,11 @@ function ResultsPage() {
       }
     >
       {isBatch ? (
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Left Column: Summary and Chart */}
-          <div className="space-y-6 lg:col-span-1">
+        <div className="space-y-6">
+          {/* Top section: Summary stats & Scatter Chart */}
+          <div className="grid gap-6 lg:grid-cols-3">
+            {/* Left Column: Summary and Insight */}
+            <div className="space-y-6 lg:col-span-1">
             <Section title="Ringkasan Batch DBSCAN">
               <div className="rounded-xl border border-border bg-surface p-4 space-y-4 shadow-sm">
                 <div className="grid grid-cols-2 gap-3">
@@ -625,7 +717,10 @@ function ResultsPage() {
                 })()}
               </div>
             </Section>
+          </div>
 
+          {/* Right Column: Scatter Plot (Wider!) */}
+          <div className="space-y-6 lg:col-span-2">
             {/* Visualisasi Klasterisasi DBSCAN */}
             <Section
               title="Visualisasi Klasterisasi DBSCAN"
@@ -714,7 +809,7 @@ function ResultsPage() {
                             );
                           }}
                         />
-                        <Scatter data={otherScatterPoints}>
+                        <Scatter data={otherScatterPoints} shape={renderCustomDot}>
                           {otherScatterPoints.map((d: any, idx: number) => {
                             let dotColor = "#6B7280";
                             if (d.cluster !== "C-6" && d.clusterId !== -1) {
@@ -724,7 +819,7 @@ function ResultsPage() {
                             return <Cell key={`dot-${idx}`} fill={dotColor} fillOpacity={0.45} stroke={d.isCore ? "#fff" : "none"} strokeWidth={0.5} />;
                           })}
                         </Scatter>
-                        <Scatter data={selectedScatterPoint}>
+                        <Scatter data={selectedScatterPoint} shape={renderCustomDot}>
                           {selectedScatterPoint.map((tp: any, idx: number) => {
                             let dotColor = "#6B7280";
                             if (tp.cluster !== "C-6" && tp.clusterId !== -1) {
@@ -748,31 +843,55 @@ function ResultsPage() {
                   </div>
                   
                   {/* Scatter Plot Legend */}
-                  <div className="flex flex-wrap gap-2.5 items-center justify-center text-[10px] text-muted-foreground mt-3 pt-2 border-t border-slate-800/60">
-                    {normalClusters.map(([clusterId, cluster], index) => {
-                      const meta = getClusterMeta(clusterId, index);
-                      return (
-                        <div key={clusterId} className="flex items-center gap-1 font-medium">
-                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: meta.color }} />
-                          <span>{meta.label}</span>
+                  <div className="flex flex-col gap-2.5 items-center justify-center text-[10px] text-muted-foreground mt-3 pt-2 border-t border-slate-800/60">
+                    <div className="flex flex-wrap gap-2.5 items-center justify-center">
+                      {normalClusters.map(([clusterId, cluster], index) => {
+                        const meta = getClusterMeta(clusterId, index);
+                        return (
+                          <div key={clusterId} className="flex items-center gap-1 font-medium">
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: meta.color }} />
+                            <span>{meta.label}</span>
+                          </div>
+                        );
+                      })}
+                      {noiseItems.length > 0 && (
+                        <div className="flex items-center gap-1 font-medium">
+                          <span className="h-2 w-2 rounded-full bg-gray-500" />
+                          <span>Noise / Derau</span>
                         </div>
-                      );
-                    })}
-                    {noiseItems.length > 0 && (
-                      <div className="flex items-center gap-1 font-medium">
-                        <span className="h-2 w-2 rounded-full bg-gray-500" />
-                        <span>Noise / Derau</span>
+                      )}
+                    </div>
+                    
+                    {/* Visual Shape Legend */}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 items-center justify-center border-t border-slate-800/40 pt-2 w-full">
+                      <span className="font-semibold text-foreground text-[9px] uppercase tracking-wider block">Bentuk Buah:</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#EF4444] border border-white" />
+                        <span>Bulat (Apel, Jeruk, Tomat)</span>
                       </div>
-                    )}
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block h-3.5 w-1.2 rounded bg-[#F59E0B] border border-white" />
+                        <span>Panjang Kuning (Pisang)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block h-1.5 w-2.5 rounded-full bg-[#3B82F6] border border-white" />
+                        <span>Oval Biru (Mangga)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-slate-500 border border-white" />
+                        <span>Lainnya (Default)</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
             </Section>
           </div>
+        </div>
 
-          {/* Right Column: Collapsible Cluster Lists */}
-          <div className="space-y-6 lg:col-span-2">
-            <Section title="Pengelompokan Klaster Terpilih" description="Pembagian buah yang Anda pilih ke dalam kelompok klaster DBSCAN">
+        {/* Bottom section: Cluster Lists (Full Width!) */}
+        <div className="space-y-6">
+          <Section title="Pengelompokan Klaster Terpilih" description="Pembagian buah yang Anda pilih ke dalam kelompok klaster DBSCAN">
               <div className="space-y-4">
                 {normalClusters.map(([clusterId, cluster], index) => {
                   const meta = getClusterMeta(clusterId, index);
@@ -1132,7 +1251,7 @@ function ResultsPage() {
                             );
                           }}
                         />
-                        <Scatter data={otherScatterPoints}>
+                        <Scatter data={otherScatterPoints} shape={renderCustomDot}>
                           {otherScatterPoints.map((d: any, idx: number) => {
                             let dotColor = "#9CA3AF";
                             if (d.cluster !== "C-6" && d.clusterId !== -1) {
@@ -1141,7 +1260,7 @@ function ResultsPage() {
                             return <Cell key={`dot-${idx}`} fill={dotColor} fillOpacity={0.65} stroke={d.isCore ? "#fff" : "none"} strokeWidth={1} />;
                           })}
                         </Scatter>
-                        <Scatter data={selectedScatterPoint}>
+                        <Scatter data={selectedScatterPoint} shape={renderCustomDot}>
                           {selectedScatterPoint.map((tp: any, idx: number) => (
                             <Cell
                               key={`selected-${idx}`}
@@ -1159,6 +1278,27 @@ function ResultsPage() {
                   <div className="flex justify-between items-center text-[10px] text-muted-foreground mt-2 border-t border-slate-800/80 pt-2">
                     <span>* Titik besar berbingkai putih tebal adalah gambar <strong>{result?.name}</strong> yang sedang dipilih</span>
                     <span className="flex items-center gap-1 font-medium text-primary"><ZoomIn className="h-3 w-3" /> Arahkan kursor ke titik untuk detail koordinat</span>
+                  </div>
+                  <div className="mt-3 p-3 rounded-lg bg-slate-900/60 border border-slate-800 text-[10px] text-muted-foreground space-y-2">
+                    <span className="font-semibold text-foreground block">Legenda Kelompok Bentuk & Warna Buah:</span>
+                    <div className="flex flex-wrap gap-x-4 gap-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-3 w-3 rounded-full bg-[#EF4444] border border-white" />
+                        <span>Bulat (Apel, Jeruk, Tomat)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block h-4 w-1.5 rounded bg-[#F59E0B] border border-white" />
+                        <span>Panjang Kuning (Pisang)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block h-2 w-3 rounded-full bg-[#3B82F6] border border-white" />
+                        <span>Oval Biru (Mangga)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-slate-500 border border-white" />
+                        <span>Lainnya (Default)</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

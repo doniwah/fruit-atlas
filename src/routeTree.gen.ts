@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkflowRouteImport } from './routes/workflow'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as LoginAdminRouteImport } from './routes/login-admin'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
@@ -43,6 +44,11 @@ const WorkflowRoute = WorkflowRouteImport.update({
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginAdminRoute = LoginAdminRouteImport.update({
+  id: '/login-admin',
+  path: '/login-admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/how-it-works': typeof HowItWorksRoute
   '/login': typeof LoginRoute
+  '/login-admin': typeof LoginAdminRoute
   '/register': typeof RegisterRoute
   '/workflow': typeof WorkflowRoute
   '/admin/analysis': typeof AdminAnalysisRoute
@@ -196,6 +203,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/how-it-works': typeof HowItWorksRoute
   '/login': typeof LoginRoute
+  '/login-admin': typeof LoginAdminRoute
   '/register': typeof RegisterRoute
   '/workflow': typeof WorkflowRoute
   '/admin/analysis': typeof AdminAnalysisRoute
@@ -224,6 +232,7 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/how-it-works': typeof HowItWorksRoute
   '/login': typeof LoginRoute
+  '/login-admin': typeof LoginAdminRoute
   '/register': typeof RegisterRoute
   '/workflow': typeof WorkflowRoute
   '/admin/analysis': typeof AdminAnalysisRoute
@@ -253,6 +262,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/how-it-works'
     | '/login'
+    | '/login-admin'
     | '/register'
     | '/workflow'
     | '/admin/analysis'
@@ -280,6 +290,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/how-it-works'
     | '/login'
+    | '/login-admin'
     | '/register'
     | '/workflow'
     | '/admin/analysis'
@@ -307,6 +318,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/how-it-works'
     | '/login'
+    | '/login-admin'
     | '/register'
     | '/workflow'
     | '/admin/analysis'
@@ -335,6 +347,7 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   HowItWorksRoute: typeof HowItWorksRoute
   LoginRoute: typeof LoginRoute
+  LoginAdminRoute: typeof LoginAdminRoute
   RegisterRoute: typeof RegisterRoute
   WorkflowRoute: typeof WorkflowRoute
   AdminAnalysisRoute: typeof AdminAnalysisRoute
@@ -369,6 +382,13 @@ declare module '@tanstack/react-router' {
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login-admin': {
+      id: '/login-admin'
+      path: '/login-admin'
+      fullPath: '/login-admin'
+      preLoaderRoute: typeof LoginAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -543,6 +563,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   HowItWorksRoute: HowItWorksRoute,
   LoginRoute: LoginRoute,
+  LoginAdminRoute: LoginAdminRoute,
   RegisterRoute: RegisterRoute,
   WorkflowRoute: WorkflowRoute,
   AdminAnalysisRoute: AdminAnalysisRoute,

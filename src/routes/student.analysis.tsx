@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import {
   ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from "recharts";
-import { runDBSCANClustering, addDatasetItem } from "@/lib/db-store";
+import { runDBSCANClustering, addDatasetItem, saveClusteringResults } from "@/lib/db-store";
 
 export const Route = createFileRoute("/student/analysis")({
   head: () => ({ meta: [{ title: "Alur Analisis — Siswa" }] }),
@@ -20,7 +20,81 @@ const steps = [
   { n: 5, t: "Hasil Akhir" },
 ];
 
-const COLORS = ["#4CAF50", "#3B82F6", "#F59E0B", "#A855F7", "#EF4444", "#9CA3AF"];
+const COLORS = ["#EF4444", "#10B981", "#F59E0B", "#3B82F6", "#8B5CF6", "#9CA3AF"];
+
+const renderCustomDot = (props: any) => {
+  const { cx, cy, payload, fill } = props;
+  if (!cx || !cy) return null;
+
+  const cluster = payload?.cluster || "";
+  const clusterId = payload?.clusterId;
+  const isTemp = payload?.id?.startsWith("TEMP-RUN") || payload?.id === "Analisis Lokal";
+
+  // Check if it belongs to Cluster 1 (Apel/Jeruk/Tomat) -> Round Red
+  if (cluster === "C-1" || clusterId === 0) {
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={isTemp ? 9 : 7}
+        fill={fill || "#EF4444"}
+        stroke="#FFFFFF"
+        strokeWidth={isTemp ? 2.5 : 1}
+        fillOpacity={0.9}
+        className={isTemp ? "animate-pulse" : ""}
+      />
+    );
+  }
+
+  // Check if it belongs to Cluster 3 (Pisang) -> Long Yellow
+  if (cluster === "C-3" || clusterId === 2) {
+    return (
+      <rect
+        x={cx - (isTemp ? 4.5 : 3.5)}
+        y={cy - (isTemp ? 10.5 : 8.5)}
+        width={isTemp ? 9 : 7}
+        height={isTemp ? 21 : 17}
+        rx={isTemp ? 4.5 : 3.5}
+        fill={fill || "#F59E0B"}
+        stroke="#FFFFFF"
+        strokeWidth={isTemp ? 2.5 : 1}
+        fillOpacity={0.9}
+        className={isTemp ? "animate-pulse" : ""}
+      />
+    );
+  }
+
+  // Check if it belongs to Cluster 4 (Mangga) -> Oval Blue
+  if (cluster === "C-4" || clusterId === 3) {
+    return (
+      <ellipse
+        cx={cx}
+        cy={cy}
+        rx={isTemp ? 12 : 9}
+        ry={isTemp ? 7 : 5}
+        fill={fill || "#3B82F6"}
+        stroke="#FFFFFF"
+        strokeWidth={isTemp ? 2.5 : 1}
+        fillOpacity={0.9}
+        className={isTemp ? "animate-pulse" : ""}
+      />
+    );
+  }
+
+  // Fallback default (Grey Circle)
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={isTemp ? 8.5 : 5.5}
+      fill={fill || "#9CA3AF"}
+      stroke="#FFFFFF"
+      strokeWidth={isTemp ? 2.5 : 0.5}
+      fillOpacity={0.8}
+      className={isTemp ? "animate-pulse" : ""}
+    />
+  );
+};
 
 interface AnalysisFeatures {
   hue: number;
@@ -563,6 +637,15 @@ function AnalysisPage() {
     setIsSaving(true);
 
     try {
+      // Save settings to database
+      await saveClusteringResults({
+        data: {
+          eps,
+          minSamples,
+          featureMode
+        }
+      });
+
       let firstSavedItemId = "";
       for (let i = 0; i < analyzedFeaturesList.length; i++) {
         const item = analyzedFeaturesList[i];
@@ -647,8 +730,16 @@ function AnalysisPage() {
         }));
       }
 
-      // Redirect to student results page using the first saved item ID
-      navigate({ to: "/student/results", search: { id: firstSavedItemId } });
+      // Redirect to student results page using the first saved item ID and parameters
+      navigate({
+        to: "/student/results",
+        search: {
+          id: firstSavedItemId,
+          eps,
+          minSamples,
+          featureMode
+        }
+      });
     } catch (err) {
       console.error(err);
     } finally {
@@ -676,11 +767,24 @@ function AnalysisPage() {
     }
   };
 
-  const formattedScatterData = clusteringResult?.points.map((pt: any) => ({
-    ...pt,
-    xCoord: mapFeatureToCoord(pt, xAxisKey),
-    yCoord: mapFeatureToCoord(pt, yAxisKey),
-  })) || [];
+  const isTargetFruit = (fruitName: string) => {
+    const name = (fruitName || "").toLowerCase();
+    return (
+      name.includes("apel") || name.includes("apple") ||
+      name.includes("jeruk") || name.includes("orange") ||
+      name.includes("tomat") || name.includes("tomato") ||
+      name.includes("pisang") || name.includes("banana") ||
+      name.includes("mangga") || name.includes("mango")
+    );
+  };
+
+  const formattedScatterData = (clusteringResult?.points || [])
+    .filter((pt: any) => pt.id.startsWith("TEMP-RUN") || isTargetFruit(pt.fruit))
+    .map((pt: any) => ({
+      ...pt,
+      xCoord: mapFeatureToCoord(pt, xAxisKey),
+      yCoord: mapFeatureToCoord(pt, yAxisKey),
+    }));
 
   const tempScatterPoints = formattedScatterData.filter((p: any) => p.id.startsWith("TEMP-RUN"));
   const otherScatterPoints = formattedScatterData.filter((p: any) => !p.id.startsWith("TEMP-RUN"));
@@ -949,7 +1053,7 @@ function AnalysisPage() {
           {/* CLUSTERING VIEW (STEP 4) */}
           {activeStep === 4 && features && (
             <Section title="Visualisasi Klasterisasi DBSCAN" description="Atur parameter kepadatan DBSCAN untuk mengamati pembentukan kelompok data.">
-              <div className="grid gap-6 lg:grid-cols-3">
+              <div className="grid gap-6 lg:grid-cols-4">
                 {/* Control Panel */}
                 <div className="space-y-4">
                   {/* Slider 1: EPS */}
@@ -1093,7 +1197,7 @@ function AnalysisPage() {
                 </div>
 
                 {/* Scatter Chart */}
-                <div className="lg:col-span-2 relative min-h-[300px] border border-border rounded-xl bg-slate-900/40 p-4 flex flex-col justify-between">
+                <div className="lg:col-span-3 relative min-h-[300px] border border-border rounded-xl bg-slate-900/40 p-4 flex flex-col justify-between">
                   {isClusteringLoading && (
                     <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px] flex items-center justify-center z-10 rounded-xl">
                       <div className="flex items-center gap-2 text-xs font-mono text-primary font-semibold">
@@ -1155,7 +1259,7 @@ function AnalysisPage() {
                         />
 
                         {/* Standard Cluster Points */}
-                        <Scatter data={otherScatterPoints}>
+                        <Scatter data={otherScatterPoints} shape={renderCustomDot}>
                           {otherScatterPoints.map((d: any, idx: number) => {
                             let dotColor = "#9CA3AF"; // Noise default
                             if (d.cluster !== "C-6" && d.clusterId !== -1) {
@@ -1167,7 +1271,7 @@ function AnalysisPage() {
 
                         {/* Pulsing Temporary Points */}
                         {tempScatterPoints.length > 0 && (
-                          <Scatter data={tempScatterPoints}>
+                          <Scatter data={tempScatterPoints} shape={renderCustomDot}>
                             {tempScatterPoints.map((tp: any, idx: number) => (
                               <Cell
                                 key={`temp-${idx}`}
@@ -1184,8 +1288,29 @@ function AnalysisPage() {
                     </ResponsiveContainer>
                   </div>
                   <div className="flex justify-between items-center text-[10px] text-muted-foreground mt-2 border-t border-slate-800/80 pt-2">
-                    <span>* Lingkaran berbingkai putih menunjukkan titik "Core Point" DBSCAN</span>
+                    <span>* Titik berbingkai menunjukkan titik "Core Point" DBSCAN</span>
                     <span className="flex items-center gap-1 font-medium text-primary"><ZoomIn className="h-3 w-3" /> Arahkan kursor ke titik untuk detail koordinat</span>
+                  </div>
+                  <div className="mt-3 p-3 rounded-lg bg-slate-900/60 border border-slate-800 text-[10px] text-muted-foreground space-y-2">
+                    <span className="font-semibold text-foreground block">Legenda Kelompok Bentuk & Warna Buah:</span>
+                    <div className="flex flex-wrap gap-x-4 gap-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-3 w-3 rounded-full bg-[#EF4444] border border-white" />
+                        <span>Bulat (Apel, Jeruk, Tomat)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block h-4 w-1.5 rounded bg-[#F59E0B] border border-white" />
+                        <span>Panjang Kuning (Pisang)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block h-2 w-3 rounded-full bg-[#3B82F6] border border-white" />
+                        <span>Oval Biru (Mangga)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-slate-500 border border-white" />
+                        <span>Kategori Lain (Warna Klaster)</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

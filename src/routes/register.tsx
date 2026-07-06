@@ -72,6 +72,7 @@ function RegisterPage() {
       role,
       avatar,
       passwordHash: password,
+      lastLogin: new Date().toISOString(),
     };
 
     // Save to users list and set as current user
