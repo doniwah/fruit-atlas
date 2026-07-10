@@ -24,6 +24,7 @@ const adminItems: Item[] = [
 const studentItems: Item[] = [
   { to: "/student", label: "Dashboard", icon: LayoutDashboard },
   { to: "/student/upload", label: "Pilih Gambar", icon: ImageIcon },
+  { to: "/student/analysis", label: "Unggah Gambar", icon: Upload },
   { to: "/student/results", label: "Hasil Analisis", icon: BarChart3 },
   { to: "/student/profile", label: "Profil", icon: User },
 ];

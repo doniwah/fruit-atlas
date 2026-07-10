@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell, Section } from "@/components/app/AppShell";
-import { Download, FileText, Sparkles, Database, ArrowLeft, RefreshCw, ZoomIn, Cpu } from "lucide-react";
+import { Download, FileText, Sparkles, Database, ArrowLeft, RefreshCw, ZoomIn, Cpu, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { getDataset, getScatterPlotData } from "@/lib/db-store";
 import {
@@ -972,6 +972,19 @@ function ResultsPage() {
           </Section>
 
           <div className="space-y-6 lg:col-span-2">
+            {result?.fruit === "Buah tidak ada di dataset" && (
+              <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-4 text-yellow-600 dark:text-yellow-400">
+                <div className="flex gap-2.5 items-start">
+                  <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                  <div>
+                    <h5 className="text-xs font-bold leading-tight">Buah Tidak Ada di Dataset!</h5>
+                    <p className="text-[11px] mt-1 text-yellow-600/80 dark:text-yellow-400/80 leading-normal">
+                      Gambar buah yang Anda unggah tidak memiliki kesamaan fitur warna maupun bentuk dengan kelompok buah yang terdaftar pada sistem (Apel, Jeruk, Pisang, Mangga, Anggur, Stroberi, Lemon, Ceri). Titik ini diklasifikasikan sebagai derau (Noise).
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             <Section title="Hasil Klasifikasi" description="Keluaran pengklasteran DBSCAN backend">
               <dl className="grid gap-4 sm:grid-cols-2">
                 {[

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { AppShell, Section } from "@/components/app/AppShell";
 import { Search, Database, ArrowRight, AlertCircle, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -65,6 +65,13 @@ function SelectFruitPage() {
 
   return (
     <AppShell role="student" title="Pilih Gambar Buah" subtitle="Pilih gambar dari dataset untuk melihat hasil analisis & klasterisasi">
+      <div className="mb-4 flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5 text-xs text-foreground">
+        <span className="text-muted-foreground">Punya gambar buah kustom sendiri yang ingin dianalisis?</span>
+        <Link to="/student/analysis" className="font-semibold text-primary hover:underline flex items-center gap-1.5 cursor-pointer">
+          Buka Halaman Unggah <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+
       <Section
         title="Perpustakaan Gambar Buah"
         description={`${filteredItems.length} gambar tersedia`}

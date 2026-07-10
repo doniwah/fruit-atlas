@@ -458,7 +458,12 @@ function AnalysisPage() {
             bestProto = p;
           }
         }
-        predictedFruit = bestProto.fruit;
+        
+        if (bestScore > 1.5) {
+          predictedFruit = "Buah tidak ada di dataset";
+        } else {
+          predictedFruit = bestProto.fruit;
+        }
       }
 
       setTimeout(() => {

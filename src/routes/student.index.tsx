@@ -67,12 +67,20 @@ function StudentDashboard() {
       title="Dashboard"
       subtitle="Sekilas tentang analisis Anda"
       actions={
-        <Link
-          to="/student/upload"
-          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
-        >
-          Pilih gambar
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/student/upload"
+            className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted"
+          >
+            Pilih gambar
+          </Link>
+          <Link
+            to="/student/analysis"
+            className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/95 shadow-sm"
+          >
+            Unggah gambar
+          </Link>
+        </div>
       }
     >
       {/* ── Stat cards ── */}
@@ -144,12 +152,18 @@ function StudentDashboard() {
               ))}
             </ul>
           )}
-          <div className="pt-3 border-t border-border/50">
+          <div className="pt-3 border-t border-border/50 flex items-center justify-between text-xs">
             <Link
               to="/student/upload"
-              className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+              className="text-primary hover:underline inline-flex items-center gap-1 font-medium"
             >
               + Pilih gambar dari dataset
+            </Link>
+            <Link
+              to="/student/analysis"
+              className="text-primary hover:underline inline-flex items-center gap-1 font-medium"
+            >
+              + Unggah gambar kustom
             </Link>
           </div>
         </Section>
