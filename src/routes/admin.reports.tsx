@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell, Section } from "@/components/app/AppShell";
-import { FileDown, FileSpreadsheet, FileText, Play, RefreshCw, AlertCircle, Check } from "lucide-react";
+import { FileDown, FileSpreadsheet, FileText, Play, RefreshCw, AlertCircle, Check, Users } from "lucide-react";
 import { useState, useEffect } from "react";
 import { getDataset, getClusters } from "@/lib/db-store";
 import { toast } from "sonner";
+import { getStoredUsers } from "@/components/app/ProfilePage";
 
 export const Route = createFileRoute("/admin/reports")({
   head: () => ({ meta: [{ title: "Laporan — Admin" }] }),
@@ -14,7 +15,7 @@ interface RecentReport {
   id: string;
   name: string;
   size: string;
-  type: "pdf" | "excel" | "history";
+  type: "pdf" | "excel" | "history" | "students";
   created: string;
   content: string; // File content string
 }
@@ -25,7 +26,7 @@ function ReportsPage() {
   const [loading, setLoading] = useState(true);
 
   // Form states
-  const [reportType, setReportType] = useState<"pdf" | "excel" | "history">("pdf");
+  const [reportType, setReportType] = useState<"pdf" | "excel" | "history" | "students">("pdf");
   const [fruitFilter, setFruitFilter] = useState("Semua");
   const [scope, setScope] = useState("real"); // "real" | "all"
 
@@ -104,6 +105,21 @@ function ReportsPage() {
       item.value,
       item.circularity,
       item.aspectRatio
+    ]);
+    return [headers.join(","), ...rows.map(r => r.map(v => `"${v}"`).join(","))].join("\n");
+  };
+
+  // Student List CSV Generator
+  const generateStudentsReport = (students: any[]) => {
+    const headers = ["ID", "Nama Lengkap", "Email", "Institusi", "Tanggal Bergabung", "Terakhir Login", "Status"];
+    const rows = students.map(s => [
+      s.id,
+      s.name,
+      s.email,
+      s.institution,
+      s.joined,
+      s.lastLogin ? new Date(s.lastLogin).toLocaleString("id-ID") : "Belum pernah",
+      s.status === "Active" ? "Aktif" : "Nonaktif"
     ]);
     return [headers.join(","), ...rows.map(r => r.map(v => `"${v}"`).join(","))].join("\n");
   };
@@ -221,7 +237,7 @@ RIWAYAT ALUR KERJA SISTEM (50 Riwayat Terakhir)
         setGenMessage(step.m);
 
         if (step.p === 100) {
-          setTimeout(() => {
+          setTimeout(async () => {
             // Generate content
             let content = "";
             let extension = "txt";
@@ -235,6 +251,22 @@ RIWAYAT ALUR KERJA SISTEM (50 Riwayat Terakhir)
             } else if (reportType === "pdf") {
               content = generatePDFReport(filtered, fruitFilter, scope);
               filename = `laporan-analisis-${fruitFilter.toLowerCase()}-${timestamp}.${extension}`;
+            } else if (reportType === "students") {
+              const users = await getStoredUsers();
+              const studentsOnly = users
+                .filter(u => u.role === "student")
+                .map(u => ({
+                  id: u.id || "STU-XXXX",
+                  name: u.fullName,
+                  email: u.email,
+                  institution: u.institution || "State University",
+                  joined: u.joined || "-",
+                  lastLogin: u.lastLogin,
+                  status: u.status || "Active"
+                }));
+              content = generateStudentsReport(studentsOnly);
+              extension = "csv";
+              filename = `daftar-mahasiswa-${timestamp}.${extension}`;
             } else {
               content = generateHistoryReport(filtered);
               filename = `riwayat-audit-${fruitFilter.toLowerCase()}-${timestamp}.${extension}`;
@@ -292,7 +324,7 @@ RIWAYAT ALUR KERJA SISTEM (50 Riwayat Terakhir)
   return (
     <AppShell role="admin" title="Laporan & Ekspor" subtitle="Buat dokumentasi laporan dan ekspor dataset secara interaktif">
       {/* Upper Grid: Quick stats */}
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {/* Card 1: PDF Report Config */}
         <div className={`rounded-xl border p-5 transition-all ${reportType === "pdf" ? "border-primary bg-primary/5 shadow-sm" : "border-border bg-card"}`}>
           <div className="flex items-center justify-between">
@@ -328,6 +360,18 @@ RIWAYAT ALUR KERJA SISTEM (50 Riwayat Terakhir)
           <h3 className="mt-4 text-sm font-bold text-foreground">Log Riwayat Audit</h3>
           <p className="mt-1 text-xs text-muted-foreground">Catatan riwayat audit lengkap disertai stempel waktu (timestamp) pengunggahan dan klasifikasi klaster.</p>
         </div>
+
+        {/* Card 4: Students Report Config */}
+        <div className={`rounded-xl border p-5 transition-all ${reportType === "students" ? "border-primary bg-primary/5 shadow-sm" : "border-border bg-card"}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500"><Users className="h-4 w-4" /></div>
+            <button onClick={() => setReportType("students")} className={`text-xs px-2.5 py-1 rounded font-semibold ${reportType === "students" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+              {reportType === "students" ? <Check className="h-3 w-3" /> : "Pilih"}
+            </button>
+          </div>
+          <h3 className="mt-4 text-sm font-bold text-foreground">Ekspor Daftar Mahasiswa</h3>
+          <p className="mt-1 text-xs text-muted-foreground">Mengekspor seluruh daftar mahasiswa beserta stempel waktu (timestamp) login terakhir mereka.</p>
+        </div>
       </div>
 
       {/* Main Workspace */}
@@ -345,9 +389,10 @@ RIWAYAT ALUR KERJA SISTEM (50 Riwayat Terakhir)
             <select
               value={fruitFilter}
               onChange={(e) => setFruitFilter(e.target.value)}
-              className="w-full mt-1.5 border border-border bg-surface rounded px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/20"
+              disabled={reportType === "students"}
+              className="w-full mt-1.5 border border-border bg-surface rounded px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <option value="Semua">Semua Jenis Buah (150 Jenis)</option>
+              <option value="Semua">Semua Jenis Buah</option>
               {fruitTypes.map(f => (
                 <option key={f} value={f}>{f}</option>
               ))}
@@ -364,10 +409,11 @@ RIWAYAT ALUR KERJA SISTEM (50 Riwayat Terakhir)
                   name="scope"
                   value="real"
                   checked={scope === "real"}
+                  disabled={reportType === "students"}
                   onChange={() => setScope("real")}
-                  className="accent-primary"
+                  className="accent-primary disabled:opacity-50"
                 />
-                <span>Hanya Dataset Utama ({items.length} Data)</span>
+                <span className={reportType === "students" ? "text-muted-foreground" : ""}>Hanya Dataset Utama ({items.length} Data)</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -375,10 +421,11 @@ RIWAYAT ALUR KERJA SISTEM (50 Riwayat Terakhir)
                   name="scope"
                   value="all"
                   checked={scope === "all"}
+                  disabled={reportType === "students"}
                   onChange={() => setScope("all")}
-                  className="accent-primary"
+                  className="accent-primary disabled:opacity-50"
                 />
-                <span>Termasuk Titik Sintetis & Noise</span>
+                <span className={reportType === "students" ? "text-muted-foreground" : ""}>Termasuk Titik Sintetis & Noise</span>
               </label>
             </div>
           </div>
@@ -428,10 +475,12 @@ RIWAYAT ALUR KERJA SISTEM (50 Riwayat Terakhir)
                       <div className="flex items-center gap-3">
                         <div className={`p-2 rounded-lg ${
                           report.type === "excel" ? "bg-emerald-500/10 text-emerald-500" :
-                          report.type === "pdf" ? "bg-red-500/10 text-red-500" : "bg-indigo-500/10 text-indigo-500"
+                          report.type === "pdf" ? "bg-red-500/10 text-red-500" :
+                          report.type === "students" ? "bg-blue-500/10 text-blue-500" : "bg-indigo-500/10 text-indigo-500"
                         }`}>
                           {report.type === "excel" ? <FileSpreadsheet className="h-4 w-4" /> :
-                           report.type === "pdf" ? <FileText className="h-4 w-4" /> : <FileDown className="h-4 w-4" />}
+                           report.type === "pdf" ? <FileText className="h-4 w-4" /> :
+                           report.type === "students" ? <Users className="h-4 w-4" /> : <FileDown className="h-4 w-4" />}
                         </div>
                         <div>
                           <div className="text-xs font-semibold text-foreground truncate max-w-[240px] md:max-w-[320px]">{report.name}</div>

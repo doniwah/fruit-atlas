@@ -38,6 +38,7 @@ interface Student {
   institution: string;
   joined: string;
   status: string;
+  lastLogin?: string;
 }
 
 function StudentsPage() {
@@ -96,6 +97,7 @@ function StudentsPage() {
             institution: u.institution || "State University",
             joined: u.joined || new Date().toISOString().split("T")[0],
             status: u.status || "Active",
+            lastLogin: u.lastLogin,
           };
         });
         
@@ -137,6 +139,7 @@ function StudentsPage() {
         passwordHash: existing?.passwordHash || "student123", // default password
         joined: s.joined,
         status: s.status as "Active" | "Inactive",
+        lastLogin: s.lastLogin,
       };
     });
     
@@ -295,7 +298,7 @@ function StudentsPage() {
           <table className="w-full text-sm">
             <thead className="bg-surface text-left text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
-                {["ID", "Nama", "Email", "Institusi", "Bergabung", "Status", "Aksi"].map((h) => (
+                {["ID", "Nama", "Email", "Institusi", "Bergabung", "Terakhir Login", "Status", "Aksi"].map((h) => (
                   <th key={h} className="px-4 py-2 font-medium">
                     {h}
                   </th>
@@ -310,6 +313,9 @@ function StudentsPage() {
                   <td className="px-4 py-2.5 text-muted-foreground">{s.email}</td>
                   <td className="px-4 py-2.5">{s.institution}</td>
                   <td className="px-4 py-2.5 text-muted-foreground">{s.joined}</td>
+                  <td className="px-4 py-2.5 text-xs font-mono text-muted-foreground">
+                    {s.lastLogin ? new Date(s.lastLogin).toLocaleString("id-ID") : "Belum pernah"}
+                  </td>
                   <td className="px-4 py-2.5">
                     <span
                       className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${

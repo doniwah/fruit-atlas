@@ -4,12 +4,12 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { getStoredUsers, saveStoredUsers } from "@/components/app/ProfilePage";
 
-export const Route = createFileRoute("/login")({
-  head: () => ({ meta: [{ title: "Masuk Siswa — FruitCluster" }] }),
-  component: LoginPage,
+export const Route = createFileRoute("/login-admin")({
+  head: () => ({ meta: [{ title: "Masuk Admin — FruitCluster" }] }),
+  component: AdminLoginPage,
 });
 
-function LoginPage() {
+function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
@@ -22,7 +22,7 @@ function LoginPage() {
       (u) =>
         u.email.toLowerCase() === email.trim().toLowerCase() &&
         u.passwordHash === password &&
-        u.role === "student"
+        u.role === "admin"
     );
 
     if (foundUser) {
@@ -36,27 +36,21 @@ function LoginPage() {
 
       localStorage.setItem("fruit_atlas_current_user", JSON.stringify(updatedUser));
       toast.success(`Selamat datang kembali, ${foundUser.fullName}!`);
-      navigate({ to: "/student" });
+      navigate({ to: "/admin" });
     } else {
-      toast.error("Email atau kata sandi salah, atau peran Anda bukan Siswa.");
+      toast.error("Email atau kata sandi salah, atau peran Anda bukan Admin.");
     }
   };
 
   return (
     <AuthCard
-      title="Masuk sebagai Siswa"
-      subtitle="Masuk untuk melanjutkan analisis Anda"
+      title="Masuk sebagai Admin"
+      subtitle="Masuk ke dashboard manajemen FruitCluster"
       footer={
         <div className="space-y-2 text-center text-xs">
           <div>
-            Belum punya akun?{" "}
-            <Link to="/register" className="font-medium text-primary hover:underline">
-              Daftar
-            </Link>
-          </div>
-          <div className="border-t border-border/50 pt-2 text-muted-foreground">
-            Apakah Anda Admin?{" "}
-            <Link to="/login-admin" className="font-medium text-primary hover:underline">
+            Apakah Anda Siswa?{" "}
+            <Link to="/login" className="font-medium text-primary hover:underline">
               Masuk di sini
             </Link>
           </div>
@@ -68,7 +62,7 @@ function LoginPage() {
           <input
             type="email"
             required
-            placeholder="siswa@universitas.ac.id"
+            placeholder="jane@universitas.ac.id"
             className={inputCls}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -92,10 +86,9 @@ function LoginPage() {
           <Link to="/forgot-password" className="font-medium text-primary hover:underline">Lupa kata sandi?</Link>
         </div>
         <button type="submit" className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-95 cursor-pointer">
-          Masuk
+          Masuk sebagai Admin
         </button>
       </form>
     </AuthCard>
   );
 }
-

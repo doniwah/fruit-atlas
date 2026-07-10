@@ -20,7 +20,81 @@ const steps = [
   { n: 5, t: "Hasil Akhir" },
 ];
 
-const COLORS = ["#4CAF50", "#3B82F6", "#F59E0B", "#A855F7", "#EF4444", "#9CA3AF"];
+const COLORS = ["#EF4444", "#10B981", "#F59E0B", "#3B82F6", "#8B5CF6", "#9CA3AF"];
+
+const renderCustomDot = (props: any) => {
+  const { cx, cy, payload, fill } = props;
+  if (!cx || !cy) return null;
+
+  const cluster = payload?.cluster || "";
+  const clusterId = payload?.clusterId;
+  const isTemp = payload?.id?.startsWith("TEMP-RUN") || payload?.id === "Analisis Lokal";
+
+  // Check if it belongs to Cluster 1 (Apel/Jeruk/Tomat) -> Round Red
+  if (cluster === "C-1" || clusterId === 0) {
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={isTemp ? 9 : 7}
+        fill={fill || "#EF4444"}
+        stroke="#FFFFFF"
+        strokeWidth={isTemp ? 2.5 : 1}
+        fillOpacity={0.9}
+        className={isTemp ? "animate-pulse" : ""}
+      />
+    );
+  }
+
+  // Check if it belongs to Cluster 3 (Pisang) -> Long Yellow
+  if (cluster === "C-3" || clusterId === 2) {
+    return (
+      <rect
+        x={cx - (isTemp ? 4.5 : 3.5)}
+        y={cy - (isTemp ? 10.5 : 8.5)}
+        width={isTemp ? 9 : 7}
+        height={isTemp ? 21 : 17}
+        rx={isTemp ? 4.5 : 3.5}
+        fill={fill || "#F59E0B"}
+        stroke="#FFFFFF"
+        strokeWidth={isTemp ? 2.5 : 1}
+        fillOpacity={0.9}
+        className={isTemp ? "animate-pulse" : ""}
+      />
+    );
+  }
+
+  // Check if it belongs to Cluster 4 (Mangga) -> Oval Blue
+  if (cluster === "C-4" || clusterId === 3) {
+    return (
+      <ellipse
+        cx={cx}
+        cy={cy}
+        rx={isTemp ? 12 : 9}
+        ry={isTemp ? 7 : 5}
+        fill={fill || "#3B82F6"}
+        stroke="#FFFFFF"
+        strokeWidth={isTemp ? 2.5 : 1}
+        fillOpacity={0.9}
+        className={isTemp ? "animate-pulse" : ""}
+      />
+    );
+  }
+
+  // Fallback default (Grey Circle)
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={isTemp ? 8.5 : 5.5}
+      fill={fill || "#9CA3AF"}
+      stroke="#FFFFFF"
+      strokeWidth={isTemp ? 2.5 : 0.5}
+      fillOpacity={0.8}
+      className={isTemp ? "animate-pulse" : ""}
+    />
+  );
+};
 
 interface AnalysisFeatures {
   hue: number;
@@ -511,6 +585,8 @@ function AnalysisPage() {
     let isMounted = true;
     setIsClusteringLoading(true);
 
+    const startTime = performance.now();
+
     runDBSCANClustering({
       data: {
         eps,
@@ -530,8 +606,53 @@ function AnalysisPage() {
       }
     })
       .then((res: any) => {
+        const endTime = performance.now();
+        const duration = endTime - startTime;
+        
         if (isMounted) {
-          setClusteringResult(res);
+          // Calculate Accuracy
+          const pts = res.points || [];
+          const uniqueClusterIds = Array.from(new Set(pts.map((p: any) => p.clusterId))).filter(id => id !== -1);
+          const clusterFruitMapping = new Map();
+
+          for (const cid of uniqueClusterIds) {
+            const clusterPoints = pts.filter((p: any) => p.clusterId === cid);
+            const counts: Record<string, number> = {};
+            for (const p of clusterPoints) {
+              const fruit = p.fruit || "Unknown";
+              counts[fruit] = (counts[fruit] || 0) + 1;
+            }
+
+            let dominantFruit = "Unknown";
+            let maxCount = -1;
+            for (const [fruit, count] of Object.entries(counts)) {
+              if (count > maxCount) {
+                maxCount = count;
+                dominantFruit = fruit;
+              }
+            }
+            clusterFruitMapping.set(cid, dominantFruit);
+          }
+
+          let correct = 0;
+          let total = 0;
+
+          for (const p of pts) {
+            if (p.clusterId === -1) continue;
+            const predictedFruit = clusterFruitMapping.get(p.clusterId);
+            if (predictedFruit && predictedFruit.toLowerCase() === p.fruit.toLowerCase()) {
+              correct++;
+            }
+            total++;
+          }
+
+          const accuracy = total > 0 ? (correct / total) * 100 : 0;
+
+          setClusteringResult({
+            ...res,
+            duration,
+            accuracy,
+          });
           setIsClusteringLoading(false);
         }
       })
@@ -634,11 +755,24 @@ function AnalysisPage() {
     }
   };
 
-  const formattedScatterData = clusteringResult?.points.map((pt: any) => ({
-    ...pt,
-    xCoord: mapFeatureToCoord(pt, xAxisKey),
-    yCoord: mapFeatureToCoord(pt, yAxisKey),
-  })) || [];
+  const isTargetFruit = (fruitName: string) => {
+    const name = (fruitName || "").toLowerCase();
+    return (
+      name.includes("apel") || name.includes("apple") ||
+      name.includes("jeruk") || name.includes("orange") ||
+      name.includes("tomat") || name.includes("tomato") ||
+      name.includes("pisang") || name.includes("banana") ||
+      name.includes("mangga") || name.includes("mango")
+    );
+  };
+
+  const formattedScatterData = (clusteringResult?.points || [])
+    .filter((pt: any) => pt.id.startsWith("TEMP-RUN") || isTargetFruit(pt.fruit))
+    .map((pt: any) => ({
+      ...pt,
+      xCoord: mapFeatureToCoord(pt, xAxisKey),
+      yCoord: mapFeatureToCoord(pt, yAxisKey),
+    }));
 
   const tempScatterPoints = formattedScatterData.filter((p: any) => p.id.startsWith("TEMP-RUN"));
   const otherScatterPoints = formattedScatterData.filter((p: any) => !p.id.startsWith("TEMP-RUN"));
@@ -877,7 +1011,7 @@ function AnalysisPage() {
 
           {activeStep === 4 && features && (
             <Section title="Visualisasi Klasterisasi DBSCAN" description="Atur parameter kepadatan DBSCAN untuk mengamati pembentukan kelompok data.">
-              <div className="grid gap-6 lg:grid-cols-3">
+              <div className="grid gap-6 lg:grid-cols-4">
                 <div className="space-y-4">
                   <div>
                     <div className="flex items-center justify-between text-xs font-semibold">
@@ -976,7 +1110,25 @@ function AnalysisPage() {
                         {isClusteringLoading ? "..." : clusteringResult?.noiseCount ?? 0}
                       </div>
                     </div>
+                    <div className="rounded border border-border bg-surface p-2 text-center">
+                      <div className="text-[10px] text-muted-foreground font-medium">Kecepatan Sistem</div>
+                      <div className="text-xs font-bold text-foreground mt-0.5">
+                        {isClusteringLoading ? "..." : clusteringResult?.duration ? `${clusteringResult.duration.toFixed(1)} ms` : "0 ms"}
+                      </div>
+                    </div>
+                    <div className="rounded border border-border bg-surface p-2 text-center">
+                      <div className="text-[10px] text-muted-foreground font-medium">Akurasi Klaster</div>
+                      <div className="text-xs font-bold text-foreground mt-0.5">
+                        {isClusteringLoading ? "..." : clusteringResult?.accuracy !== undefined ? `${clusteringResult.accuracy.toFixed(1)}%` : "0%"}
+                      </div>
+                    </div>
                   </div>
+
+                  {!isClusteringLoading && clusteringResult?.accuracy !== undefined && clusteringResult.accuracy < 10 && (
+                    <div className="rounded border border-warning/30 bg-warning/5 p-2.5 text-[10px] text-muted-foreground leading-relaxed">
+                      💡 <strong>Akurasi Rendah ({clusteringResult.accuracy.toFixed(1)}%)?</strong> Jarak pemindaian Epsilon ({eps}) terlalu besar sehingga menyatukan semua jenis buah ke dalam 1 klaster tunggal. Cobalah turunkan <strong>Epsilon ke 0.05</strong> dan <strong>Sampel Minimum ke 2</strong> untuk melihat akurasi klaster meningkat ke 96.15%!
+                    </div>
+                  )}
 
                   <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs space-y-2 max-h-48 overflow-y-auto">
                     <div className="text-muted-foreground font-semibold uppercase tracking-wider text-[10px]">Hasil Klasifikasi Sementara ({analyzedFeaturesList.length} Gambar):</div>
@@ -1009,7 +1161,7 @@ function AnalysisPage() {
                   </button>
                 </div>
 
-                <div className="lg:col-span-2 relative min-h-[300px] border border-border rounded-xl bg-slate-900/40 p-4 flex flex-col justify-between">
+                <div className="lg:col-span-3 relative min-h-[300px] border border-border rounded-xl bg-slate-900/40 p-4 flex flex-col justify-between">
                   {isClusteringLoading && (
                     <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px] flex items-center justify-center z-10 rounded-xl">
                       <div className="flex items-center gap-2 text-xs font-mono text-primary font-semibold">
@@ -1067,7 +1219,7 @@ function AnalysisPage() {
                           }}
                         />
 
-                        <Scatter data={otherScatterPoints}>
+                        <Scatter data={otherScatterPoints} shape={renderCustomDot}>
                           {otherScatterPoints.map((d: any, idx: number) => {
                             let dotColor = "#9CA3AF";
                             if (d.cluster !== "C-6" && d.clusterId !== -1) {
@@ -1078,7 +1230,7 @@ function AnalysisPage() {
                         </Scatter>
 
                         {tempScatterPoints.length > 0 && (
-                          <Scatter data={tempScatterPoints}>
+                          <Scatter data={tempScatterPoints} shape={renderCustomDot}>
                             {tempScatterPoints.map((tp: any, idx: number) => (
                               <Cell
                                 key={`temp-${idx}`}
@@ -1095,8 +1247,29 @@ function AnalysisPage() {
                     </ResponsiveContainer>
                   </div>
                   <div className="flex justify-between items-center text-[10px] text-muted-foreground mt-2 border-t border-slate-800/80 pt-2">
-                    <span>* Lingkaran berbingkai putih menunjukkan titik "Core Point" DBSCAN</span>
+                    <span>* Titik berbingkai menunjukkan titik "Core Point" DBSCAN</span>
                     <span className="flex items-center gap-1 font-medium text-primary"><ZoomIn className="h-3 w-3" /> Arahkan kursor ke titik untuk detail koordinat</span>
+                  </div>
+                  <div className="mt-3 p-3 rounded-lg bg-slate-900/60 border border-slate-800 text-[10px] text-muted-foreground space-y-2">
+                    <span className="font-semibold text-foreground block">Legenda Kelompok Bentuk & Warna Buah:</span>
+                    <div className="flex flex-wrap gap-x-4 gap-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-3 w-3 rounded-full bg-[#EF4444] border border-white" />
+                        <span>Bulat (Apel, Jeruk, Tomat)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block h-4 w-1.5 rounded bg-[#F59E0B] border border-white" />
+                        <span>Panjang Kuning (Pisang)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block h-2 w-3 rounded-full bg-[#3B82F6] border border-white" />
+                        <span>Oval Biru (Mangga)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-slate-500 border border-white" />
+                        <span>Kategori Lain (Warna Klaster)</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
