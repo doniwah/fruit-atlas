@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkflowRouteImport } from './routes/workflow'
+import { Route as RegisterAdminRouteImport } from './routes/register-admin'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginAdminRouteImport } from './routes/login-admin'
 import { Route as LoginRouteImport } from './routes/login'
@@ -39,6 +40,11 @@ import { Route as AdminAnalysisRouteImport } from './routes/admin.analysis'
 const WorkflowRoute = WorkflowRouteImport.update({
   id: '/workflow',
   path: '/workflow',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterAdminRoute = RegisterAdminRouteImport.update({
+  id: '/register-admin',
+  path: '/register-admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RegisterRoute = RegisterRouteImport.update({
@@ -177,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/login-admin': typeof LoginAdminRoute
   '/register': typeof RegisterRoute
+  '/register-admin': typeof RegisterAdminRoute
   '/workflow': typeof WorkflowRoute
   '/admin/analysis': typeof AdminAnalysisRoute
   '/admin/cluster-detail': typeof AdminClusterDetailRoute
@@ -205,6 +212,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/login-admin': typeof LoginAdminRoute
   '/register': typeof RegisterRoute
+  '/register-admin': typeof RegisterAdminRoute
   '/workflow': typeof WorkflowRoute
   '/admin/analysis': typeof AdminAnalysisRoute
   '/admin/cluster-detail': typeof AdminClusterDetailRoute
@@ -234,6 +242,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/login-admin': typeof LoginAdminRoute
   '/register': typeof RegisterRoute
+  '/register-admin': typeof RegisterAdminRoute
   '/workflow': typeof WorkflowRoute
   '/admin/analysis': typeof AdminAnalysisRoute
   '/admin/cluster-detail': typeof AdminClusterDetailRoute
@@ -264,6 +273,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/login-admin'
     | '/register'
+    | '/register-admin'
     | '/workflow'
     | '/admin/analysis'
     | '/admin/cluster-detail'
@@ -292,6 +302,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/login-admin'
     | '/register'
+    | '/register-admin'
     | '/workflow'
     | '/admin/analysis'
     | '/admin/cluster-detail'
@@ -320,6 +331,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/login-admin'
     | '/register'
+    | '/register-admin'
     | '/workflow'
     | '/admin/analysis'
     | '/admin/cluster-detail'
@@ -349,6 +361,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   LoginAdminRoute: typeof LoginAdminRoute
   RegisterRoute: typeof RegisterRoute
+  RegisterAdminRoute: typeof RegisterAdminRoute
   WorkflowRoute: typeof WorkflowRoute
   AdminAnalysisRoute: typeof AdminAnalysisRoute
   AdminClusterDetailRoute: typeof AdminClusterDetailRoute
@@ -375,6 +388,13 @@ declare module '@tanstack/react-router' {
       path: '/workflow'
       fullPath: '/workflow'
       preLoaderRoute: typeof WorkflowRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register-admin': {
+      id: '/register-admin'
+      path: '/register-admin'
+      fullPath: '/register-admin'
+      preLoaderRoute: typeof RegisterAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/register': {
@@ -565,6 +585,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   LoginAdminRoute: LoginAdminRoute,
   RegisterRoute: RegisterRoute,
+  RegisterAdminRoute: RegisterAdminRoute,
   WorkflowRoute: WorkflowRoute,
   AdminAnalysisRoute: AdminAnalysisRoute,
   AdminClusterDetailRoute: AdminClusterDetailRoute,

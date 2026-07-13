@@ -4,13 +4,13 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { getStoredUsers, saveStoredUsers, UserProfile } from "@/components/app/ProfilePage";
 
-export const Route = createFileRoute("/register")({
-  head: () => ({ meta: [{ title: "Daftar — FruitCluster" }] }),
-  component: RegisterPage,
+export const Route = createFileRoute("/register-admin")({
+  head: () => ({ meta: [{ title: "Daftar Admin — FruitCluster" }] }),
+  component: AdminRegisterPage,
 });
 
-function RegisterPage() {
-  const role = "student";
+function AdminRegisterPage() {
+  const role = "admin";
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -79,32 +79,31 @@ function RegisterPage() {
     await saveStoredUsers([...users, newUser]);
     localStorage.setItem("fruit_atlas_current_user", JSON.stringify(newUser));
 
-    toast.success("Registrasi berhasil! Selamat datang di FruitCluster.");
-    navigate({ to: "/student" });
+    toast.success("Registrasi berhasil! Selamat datang di FruitCluster Admin.");
+    navigate({ to: "/admin" });
   };
 
   return (
     <AuthCard
-      title="Buat Akun Siswa"
-      subtitle="Bergabunglah dengan ruang kerja penelitian FruitCluster"
+      title="Buat Akun Admin"
+      subtitle="Bergabunglah dengan ruang kerja manajemen FruitCluster"
       footer={
         <div className="space-y-2 text-center text-xs">
           <div>
             Sudah punya akun?{" "}
-            <Link to="/login" className="font-medium text-primary hover:underline">
+            <Link to="/login-admin" className="font-medium text-primary hover:underline">
               Masuk
             </Link>
           </div>
           <div className="border-t border-border/50 pt-2 text-muted-foreground">
-            Apakah Anda Admin?{" "}
-            <Link to="/register-admin" className="font-medium text-primary hover:underline">
+            Apakah Anda Siswa?{" "}
+            <Link to="/register" className="font-medium text-primary hover:underline">
               Daftar di sini
             </Link>
           </div>
         </div>
       }
     >
-
       <form className="space-y-4" onSubmit={handleRegister}>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Nama Lengkap">
@@ -130,7 +129,7 @@ function RegisterPage() {
           <input
             type="email"
             className={inputCls}
-            placeholder="nama@universitas.ac.id"
+            placeholder="admin@universitas.ac.id"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -185,7 +184,7 @@ function RegisterPage() {
           />
         </Field>
         <button type="submit" className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-95 cursor-pointer">
-          Buat Akun
+          Buat Akun Admin
         </button>
       </form>
     </AuthCard>

@@ -49,6 +49,12 @@ function AdminLoginPage() {
       footer={
         <div className="space-y-2 text-center text-xs">
           <div>
+            Belum punya akun admin?{" "}
+            <Link to="/register-admin" className="font-medium text-primary hover:underline">
+              Daftar
+            </Link>
+          </div>
+          <div className="border-t border-border/50 pt-2 text-muted-foreground">
             Apakah Anda Siswa?{" "}
             <Link to="/login" className="font-medium text-primary hover:underline">
               Masuk di sini
